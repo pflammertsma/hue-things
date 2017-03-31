@@ -23,6 +23,6 @@ android {
 
 dependencies {
     provided 'com.google.android.things:androidthings:0.2-devpreview'
-
     compile 'com.squareup.okhttp3:okhttp:3.6.0'
+    compile 'com.squareup.okhttp3:logging-interceptor:3.4.1'
 }

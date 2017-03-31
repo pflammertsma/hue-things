@@ -8,6 +8,7 @@ import android.util.Log;
 import com.google.android.things.pio.PeripheralManagerService;
 
 import java.io.IOException;
+import java.util.Locale;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -16,31 +17,48 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okhttp3.logging.HttpLoggingInterceptor;
 
 public class MainActivity extends Activity {
 
     private static final String TAG = MainActivity.class.getSimpleName();
+    private static final boolean VERBOSE = false;
 
-    private static final float MAX_READING = 1023f;
-    private static final String URL = "http://10.42.39.194/api/vJB9Z1Q-SnW2Lunvzohsn2O17yVq8kqfhsHnNNa2/lights/3/state";
+    private static final String URL = "http://%s/api/%s/lights/%d/state";
+    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
-    public static final MediaType JSON
-            = MediaType.parse("application/json; charset=utf-8");
+    private static final long SAMPLE_FREQUENCY_MS = 100L;
+    private static final long REQUEST_FREQUENCY_MS = 500L;
     private static final float THRESHOLD = 0.01f;
+    private static final int SMOOTH_SAMPLING_RATE = 6;
+    private static final float MAX_READING = 1023f;
+    private static final boolean INVERTED = true;
 
-    private OkHttpClient client = new OkHttpClient();
+    private HttpLoggingInterceptor mOkHttpLogging = new HttpLoggingInterceptor();
+    private OkHttpClient mOkHttpClient = new OkHttpClient.Builder()
+            .addInterceptor(mOkHttpLogging)
+            .build();
 
     private MCP3008 mMCP3008;
     private Handler mHandler;
 
+    private String mBridgeIp = null; //"10.42.39.194";
+    private String mBridgeToken = null; //"vJB9Z1Q-SnW2Lunvzohsn2O17yVq8kqfhsHnNNa2";
+    private int mLightId = 0;
+
     private boolean mRequestBusy;
-    private float mLastValue = -1;
+    private long mRequestTimestamp;
+    private float mLastBrightness = -1;
+    private float mLastHue = -1;
+    private float mLastSaturation = -1;
+
+    private final Rolling mBrightness = new Rolling(SMOOTH_SAMPLING_RATE);
+    private final Rolling mHue = new Rolling(SMOOTH_SAMPLING_RATE);
+    private final Rolling mSaturation = new Rolling(SMOOTH_SAMPLING_RATE);
 
     private Runnable mReadAdcRunnable = new Runnable() {
 
         public static final boolean SHOW_ALL_CHANNELS = false;
-
-        private static final long DELAY_MS = 100L;
 
         @Override
         public void run() {
@@ -59,22 +77,49 @@ public class MainActivity extends Activity {
                     Log.d("MCP3008", "ADC 6: " + mMCP3008.readAdc(0x6));
                     Log.d("MCP3008", "ADC 7: " + mMCP3008.readAdc(0x7));
                 }
-                float val = mMCP3008.readAdc(0x0);
-                // Invert and normalize [0-1]
-                float normalized = (MAX_READING - val) / MAX_READING;
-                Log.d("MCP3008", String.format("value: %f", normalized));
-                setLight(normalized);
+
+                float brightness = normalize(0);
+                if (VERBOSE) {
+                    Log.d("MCP3008", String.format("brightness: %f", brightness));
+                }
+                mBrightness.add(brightness);
+
+                float hue = normalize(1);
+                if (VERBOSE) {
+                    Log.d("MCP3008", String.format("hue:        %f", hue));
+                }
+                mHue.add(hue);
+
+                float saturation = normalize(2);
+                if (VERBOSE) {
+                    Log.d("MCP3008", String.format("saturation: %f", saturation));
+                }
+                mSaturation.add(saturation);
+
+                setLight(mBrightness.getAverage(), mHue.getAverage(), mSaturation.getAverage());
+
             } catch (IOException e) {
                 Log.d("MCP3008", "Something went wrong while reading from the ADC: " + e.getMessage());
             }
 
-            mHandler.postDelayed(this, DELAY_MS);
+            mHandler.postDelayed(this, SAMPLE_FREQUENCY_MS);
         }
     };
+
+    private float normalize(int channel) throws IOException {
+        float val = mMCP3008.readAdc(channel);
+        if (INVERTED) {
+            val = (MAX_READING - val);
+        }
+        // Normalize between [0-1]
+        return val / MAX_READING;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        mOkHttpLogging.setLevel(HttpLoggingInterceptor.Level.BODY);
 
         // CS (chip select) = BCM22
         // Clock = BCM4
@@ -108,28 +153,39 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void setLight(float value) throws IOException {
-        if (mRequestBusy) {
+    private void setLight(float brightness, float hue, float saturation) throws IOException {
+        Log.d("MCP3008", "sat: " + saturation + " \tbri: " + brightness + " \thue: " + hue);
+        if (mBridgeIp == null) {
+            // We're not configured yet
             return;
         }
-        if (mLastValue >= 0 && Math.abs(mLastValue - value) < THRESHOLD) {
+        if (mRequestBusy || mRequestTimestamp > System.currentTimeMillis() - REQUEST_FREQUENCY_MS) {
             return;
         }
-        mLastValue = value;
+        if (mLastBrightness >= 0 && Math.abs(mLastBrightness - brightness) < THRESHOLD &&
+                mLastHue >= 0 && Math.abs(mLastHue - hue) < THRESHOLD &&
+                mLastSaturation >= 0 && Math.abs(mLastSaturation - saturation) < THRESHOLD) {
+            return;
+        }
+        mLastBrightness = brightness;
         mRequestBusy = true;
+        mRequestTimestamp = System.currentTimeMillis();
+
         boolean switchedOn = true;
-        int saturation = 254;
-        int brightness = 254;
-//        int brightness = Math.round(254 * value);
-        int hue = Math.round(65000 * value);
-        String json = "{\n\t\"on\": " + switchedOn + ",\n\t\"sat\": " + saturation + ", \n\t\"bri\": " + brightness + ",\n\t\"hue\": " + hue + "\n}";
+        int saturation2 = Math.round(254 * saturation);
+        int brightness2 = Math.round(254 * brightness);
+        int hue2 = Math.round(65000 * hue);
+        String json = "{\n\t\"on\": " + switchedOn + ",\n\t\"sat\": " + saturation2 + ", \n\t\"bri\": " + brightness2 + ", \n\t\"hue\": " + hue2 + "\n}";
+        //Log.d("MCP3008", String.format("json: %s", json));
+
+        String url = String.format(Locale.ENGLISH, URL, mBridgeIp, mBridgeToken, mLightId);
 
         RequestBody body = RequestBody.create(JSON, json);
         Request request = new Request.Builder()
-                .url(URL)
+                .url(url)
                 .put(body)
                 .build();
-        client.newCall(request).enqueue(new Callback() {
+        mOkHttpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
                 Log.e(TAG, "request failed", e);
@@ -142,6 +198,40 @@ public class MainActivity extends Activity {
                 mRequestBusy = false;
             }
         });
+    }
+
+    public class Rolling {
+
+        private int size;
+        private int fill;
+        private float total = 0f;
+        private int index = 0;
+        private float samples[];
+
+        public Rolling(int size) {
+            this.size = size;
+            samples = new float[size];
+        }
+
+        public void add(float x) {
+            total -= samples[index];
+            samples[index] = x;
+            total += x;
+            if (fill < size) {
+                fill = index + 1;
+            }
+            if (++index == size) {
+                index = 0; // cheaper than modulus
+            }
+        }
+
+        public float getAverage() {
+            if (fill == 0) {
+                return 0f;
+            }
+            return total / fill;
+        }
+
     }
 
 }
