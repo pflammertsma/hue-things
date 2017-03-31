@@ -18,6 +18,10 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.logging.HttpLoggingInterceptor;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.functions.Action1;
+import rx.functions.Func1;
+import rx.schedulers.Schedulers;
 
 public class MainActivity extends Activity {
 
@@ -78,12 +82,6 @@ public class MainActivity extends Activity {
                     Log.d("MCP3008", "ADC 7: " + mMCP3008.readAdc(0x7));
                 }
 
-                float brightness = normalize(0);
-                if (VERBOSE) {
-                    Log.d("MCP3008", String.format("brightness: %f", brightness));
-                }
-                mBrightness.add(brightness);
-
                 float hue = normalize(1);
                 if (VERBOSE) {
                     Log.d("MCP3008", String.format("hue:        %f", hue));
@@ -96,7 +94,13 @@ public class MainActivity extends Activity {
                 }
                 mSaturation.add(saturation);
 
-                setLight(mBrightness.getAverage(), mHue.getAverage(), mSaturation.getAverage());
+                float brightness = normalize(0);
+                if (VERBOSE) {
+                    Log.d("MCP3008", String.format("brightness: %f", brightness));
+                }
+                mBrightness.add(brightness);
+
+                setLight(mHue.getAverage(), mSaturation.getAverage(), mBrightness.getAverage());
 
             } catch (IOException e) {
                 Log.d("MCP3008", "Something went wrong while reading from the ADC: " + e.getMessage());
@@ -141,6 +145,34 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+
+        new UPnPDeviceFinder().observe()
+                              .filter(new Func1<UPnPDevice, Boolean>() {
+                                  @Override
+                                  public Boolean call(UPnPDevice device) {
+                                      try {
+                                          device.downloadSpecs();
+                                      }
+                                      catch (Exception e) {
+                                          // Ignore errors
+                                          Log.w(TAG, "Error: " + e);
+                                      }
+                                      return true;
+                                  }
+                              })
+                              .subscribeOn(Schedulers.io())
+                              .observeOn(AndroidSchedulers.mainThread())
+                              .subscribe(new Action1<UPnPDevice>() {
+                                  @Override
+                                  public void call(UPnPDevice device) {
+                                      Log.d(TAG, "Device discovered: " + device);
+                                  }
+                              });
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
 
@@ -153,12 +185,12 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void setLight(float brightness, float hue, float saturation) throws IOException {
-        Log.d("MCP3008", "sat: " + saturation + " \tbri: " + brightness + " \thue: " + hue);
+    private void setLight(float hue, float saturation, float brightness) throws IOException {
         if (mBridgeIp == null) {
             // We're not configured yet
             return;
         }
+        Log.d("MCP3008", "hue: " + hue + " \tsat: " + saturation + " \tbri: " + brightness);
         if (mRequestBusy || mRequestTimestamp > System.currentTimeMillis() - REQUEST_FREQUENCY_MS) {
             return;
         }
