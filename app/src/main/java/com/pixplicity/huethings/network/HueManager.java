@@ -36,6 +36,18 @@ public class HueManager {
         mOkHttpLogging.setLevel(HttpLoggingInterceptor.Level.BODY);
     }
 
+    public String getUrl() {
+        String url = String.format(Locale.ENGLISH, URL, mBridgeIp);
+        if (mBridgeToken != null) {
+            url += "/" + mBridgeToken;
+        }
+        return url;
+    }
+
+    public void authenticate() {
+        // TODO
+    }
+
     public void setLights(float hue, float saturation, float brightness, final Callback callback) {
         if (mBridgeIp == null) {
             // We're not configured yet
@@ -50,11 +62,11 @@ public class HueManager {
         String json = "{\n\t\"on\": " + switchedOn + ",\n\t\"sat\": " + saturation2 + ", \n\t\"bri\": " + brightness2 + ", \n\t\"hue\": " + hue2 + "\n}";
         //Log.d("MCP3008", String.format("json: %s", json));
 
-        String url = String.format(Locale.ENGLISH, URL, mBridgeIp, mBridgeToken, mLightId);
+        String urlSuffix = String.format(Locale.ENGLISH, URL_LIGHTS, mLightId);
 
         RequestBody body = RequestBody.create(JSON, json);
         Request request = new Request.Builder()
-                .url(url)
+                .url(getUrl() + urlSuffix)
                 .put(body)
                 .build();
         mOkHttpClient.newCall(request).enqueue(new Callback() {
@@ -71,5 +83,4 @@ public class HueManager {
             }
         });
     }
-
 }
