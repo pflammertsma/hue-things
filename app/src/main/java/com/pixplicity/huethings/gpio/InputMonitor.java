@@ -3,17 +3,13 @@ package com.pixplicity.huethings.gpio;
 import android.os.Handler;
 import android.util.Log;
 
+import com.pixplicity.huethings.network.HueManager;
+
 import java.io.IOException;
-import java.util.Locale;
 
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
-import okhttp3.logging.HttpLoggingInterceptor;
 
 public class InputMonitor {
 
@@ -27,9 +23,6 @@ public class InputMonitor {
     private static final float MAX_READING = 1023f;
     private static final boolean INVERTED = true;
 
-    private static final String URL = "http://%s/api/%s/lights/%d/state";
-    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-
     // CS (chip select) = BCM22
     // Clock            = BCM4
     // DOUT/MISO        = BCM27
@@ -37,15 +30,6 @@ public class InputMonitor {
 
     private MCP3008 mMCP3008 = new MCP3008();
     private Handler mHandler = new Handler();
-
-    private HttpLoggingInterceptor mOkHttpLogging = new HttpLoggingInterceptor();
-    private OkHttpClient mOkHttpClient = new OkHttpClient.Builder()
-            .addInterceptor(mOkHttpLogging)
-            .build();
-
-    private String mBridgeIp = null; //"10.42.39.194";
-    private String mBridgeToken = null; //"vJB9Z1Q-SnW2Lunvzohsn2O17yVq8kqfhsHnNNa2";
-    private int mLightId = 0;
 
     private Runnable mReadAdcRunnable = new Runnable() {
 
@@ -107,9 +91,7 @@ public class InputMonitor {
     private final Rolling mHue = new Rolling(SMOOTH_SAMPLING_RATE);
     private final Rolling mSaturation = new Rolling(SMOOTH_SAMPLING_RATE);
 
-    public InputMonitor() {
-        mOkHttpLogging.setLevel(HttpLoggingInterceptor.Level.BODY);
-    }
+    private HueManager mHueManager = new HueManager();
 
     public void start() {
         try {
@@ -144,10 +126,6 @@ public class InputMonitor {
     }
 
     private void setLight(float hue, float saturation, float brightness) throws IOException {
-        if (mBridgeIp == null) {
-            // We're not configured yet
-            return;
-        }
         Log.d("MCP3008", "hue: " + hue + " \tsat: " + saturation + " \tbri: " + brightness);
         if (mRequestBusy || mRequestTimestamp > System.currentTimeMillis() - REQUEST_FREQUENCY_MS) {
             return;
@@ -161,33 +139,18 @@ public class InputMonitor {
         mRequestBusy = true;
         mRequestTimestamp = System.currentTimeMillis();
 
-        boolean switchedOn = true;
-        int saturation2 = Math.round(254 * saturation);
-        int brightness2 = Math.round(254 * brightness);
-        int hue2 = Math.round(65000 * hue);
-        String json = "{\n\t\"on\": " + switchedOn + ",\n\t\"sat\": " + saturation2 + ", \n\t\"bri\": " + brightness2 + ", \n\t\"hue\": " + hue2 + "\n}";
-        //Log.d("MCP3008", String.format("json: %s", json));
+        mHueManager.setLights(hue, saturation, brightness,
+                              new Callback() {
+                                      @Override
+                                      public void onFailure(Call call, IOException e) {
+                                          mRequestBusy = false;
+                                      }
 
-        String url = String.format(Locale.ENGLISH, URL, mBridgeIp, mBridgeToken, mLightId);
-
-        RequestBody body = RequestBody.create(JSON, json);
-        Request request = new Request.Builder()
-                .url(url)
-                .put(body)
-                .build();
-        mOkHttpClient.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                Log.e(TAG, "request failed", e);
-                mRequestBusy = false;
-            }
-
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                Log.d(TAG, response.body().string());
-                mRequestBusy = false;
-            }
-        });
+                                      @Override
+                                      public void onResponse(Call call, Response response) throws IOException {
+                                          mRequestBusy = false;
+                                      }
+                                  });
     }
 
     public class Rolling {
