@@ -97,11 +97,11 @@ public class HueBridge {
         mOkHttpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                CapabilitiesResponse capabilitiesResponse = mGson.fromJson(
-                        new InputStreamReader(response.body().byteStream()), CapabilitiesResponse.class);
-                HueResponse.ResponseError error = capabilitiesResponse.error;
-                if (capabilitiesResponse.error == null) {
-                    callback.onSuccess(capabilitiesResponse);
+                CapabilitiesResponse[] capabilitiesResponse = mGson.fromJson(
+                        new InputStreamReader(response.body().byteStream()), CapabilitiesResponse[].class);
+                HueResponse.ResponseError error = capabilitiesResponse[0].error;
+                if (error == null) {
+                    callback.onSuccess(capabilitiesResponse[0]);
                 } else {
                     callback.onFailure(error, null);
                 }
