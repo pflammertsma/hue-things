@@ -6,6 +6,6 @@ public interface CapabilitiesCallback {
 
     void onSuccess(HueBridge.CapabilitiesResponse success);
 
-    void onFailure(HueBridge.HueResponse.ResponseError error, IOException e);
+    void onFailure(HueBridge.ErrorResponse.ResponseError error, IOException e);
 
 }

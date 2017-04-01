@@ -6,6 +6,7 @@ import android.util.Log;
 import com.pixplicity.huethings.network.HueBridge;
 
 import java.io.IOException;
+import java.util.Locale;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -134,7 +135,9 @@ public class InputMonitor {
             // Not ready yet
             return;
         }
-        Log.d("MCP3008", "hue: " + hue + " \tsat: " + saturation + " \tbri: " + brightness);
+        Log.d("MCP3008",
+              String.format(Locale.ENGLISH, "\thue: %.3f \tsat: %.3f \tbri: %.3f",
+                            hue, saturation, brightness));
         if (mRequestBusy || mRequestTimestamp > System.currentTimeMillis() - REQUEST_FREQUENCY_MS) {
             return;
         }
@@ -145,6 +148,8 @@ public class InputMonitor {
         }
 
         mLastBrightness = brightness;
+        mLastHue = hue;
+        mLastSaturation = saturation;
         mRequestBusy = true;
         mRequestTimestamp = System.currentTimeMillis();
 

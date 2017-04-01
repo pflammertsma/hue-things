@@ -6,7 +6,6 @@ import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
 
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.Locale;
 
 import okhttp3.Call;
@@ -69,14 +68,17 @@ public class HueBridge {
         mOkHttpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                AuthResponse[] authResponse = mGson.fromJson(
-                        new InputStreamReader(response.body().byteStream()), AuthResponse[].class);
-                AuthResponse.AuthResponseSuccess success = authResponse[0].success;
-                HueResponse.ResponseError error = authResponse[0].error;
-                if (success != null) {
+                String json = response.body().string();
+                try {
+                    AuthResponse[] authResponse = mGson.fromJson(
+                            json, AuthResponse[].class);
+                    AuthResponse.AuthResponseSuccess success = authResponse[0].success;
                     mBridgeToken = success.username;
                     callback.onSuccess(success);
-                } else {
+                } catch (IllegalStateException e) {
+                    ErrorResponse[] errors = mGson.fromJson(
+                            json, ErrorResponse[].class);
+                    ErrorResponse.ResponseError error = errors[0].error;
                     callback.onFailure(error, null);
                 }
             }
@@ -97,12 +99,15 @@ public class HueBridge {
         mOkHttpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                CapabilitiesResponse[] capabilitiesResponse = mGson.fromJson(
-                        new InputStreamReader(response.body().byteStream()), CapabilitiesResponse[].class);
-                HueResponse.ResponseError error = capabilitiesResponse[0].error;
-                if (error == null) {
-                    callback.onSuccess(capabilitiesResponse[0]);
-                } else {
+                String json = response.body().string();
+                try {
+                    CapabilitiesResponse capabilitiesResponse = mGson.fromJson(
+                            json, CapabilitiesResponse.class);
+                    callback.onSuccess(capabilitiesResponse);
+                } catch (IllegalStateException e) {
+                    ErrorResponse[] errors = mGson.fromJson(
+                            json, ErrorResponse[].class);
+                    ErrorResponse.ResponseError error = errors[0].error;
                     callback.onFailure(error, null);
                 }
             }
@@ -188,7 +193,7 @@ public class HueBridge {
 
     }
 
-    public class AuthResponse extends HueResponse {
+    public class AuthResponse {
 
         @SerializedName("success")
         AuthResponseSuccess success;
@@ -202,7 +207,7 @@ public class HueBridge {
 
     }
 
-    public class CapabilitiesResponse extends HueResponse {
+    public class CapabilitiesResponse {
 
         @SerializedName("lights")
         Availability lights;
@@ -216,7 +221,7 @@ public class HueBridge {
 
     }
 
-    public class HueResponse {
+    public class ErrorResponse {
 
         @SerializedName("error")
         ResponseError error;

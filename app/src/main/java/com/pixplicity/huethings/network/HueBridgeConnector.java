@@ -21,6 +21,7 @@ public class HueBridgeConnector {
 
     public void connect(String host, final String bridgeId) {
         final HueBridge hueBridge = new HueBridge(host);
+
         final Runnable runnable = new Runnable() {
             @Override
             public void run() {
@@ -36,15 +37,20 @@ public class HueBridgeConnector {
                     }
 
                     @Override
-                    public void onFailure(HueBridge.HueResponse.ResponseError error, IOException e) {
+                    public void onFailure(HueBridge.ErrorResponse.ResponseError error, IOException e) {
                         mHandler.postDelayed(runnable, 5000);
                     }
                 };
+
+                // Reset the HueBridge to authenticate
+                hueBridge.setBridgeToken(null);
                 hueBridge.authenticate(callback);
             }
         };
+
         final String bridgeToken = Prefs.getString("bridge_" + bridgeId, null);
         if (bridgeToken != null) {
+            hueBridge.setBridgeToken(bridgeToken);
             // Check if our session is valid
             hueBridge.capabilities(new CapabilitiesCallback() {
                 @Override
@@ -53,7 +59,7 @@ public class HueBridgeConnector {
                 }
 
                 @Override
-                public void onFailure(HueBridge.HueResponse.ResponseError error, IOException e) {
+                public void onFailure(HueBridge.ErrorResponse.ResponseError error, IOException e) {
                     // Forget this token as it's evidently no longer valid
                     Prefs.remove("bridge_" + bridgeId);
 

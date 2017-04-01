@@ -6,6 +6,6 @@ public interface AuthenticationCallback {
 
     void onSuccess(HueBridge.AuthResponse.AuthResponseSuccess success);
 
-    void onFailure(HueBridge.HueResponse.ResponseError error, IOException e);
+    void onFailure(HueBridge.ErrorResponse.ResponseError error, IOException e);
 
 }
