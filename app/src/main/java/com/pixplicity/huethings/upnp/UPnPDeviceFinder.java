@@ -25,6 +25,7 @@ import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.SocketAddress;
+import java.net.SocketTimeoutException;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -39,15 +40,14 @@ import rx.Subscriber;
 public class UPnPDeviceFinder {
 
     private static String TAG = UPnPDeviceFinder.class.getName();
+    private static final boolean VERBOSE = true;
 
     public static final String MULTICAST_ADDRESS = "239.255.255.250";
 
     public static final int PORT = 1900;
 
     public static final int MAX_REPLY_TIME = 60;
-    public static final int MSG_TIMEOUT = MAX_REPLY_TIME * 1000 + 1000;
-
-    private InetAddress mInetDeviceAdr;
+    public static final int MSG_TIMEOUT = MAX_REPLY_TIME * 2 * 1000;
 
     private UPnPSocket mSock;
 
@@ -55,14 +55,14 @@ public class UPnPDeviceFinder {
         this(true);
     }
 
-    public UPnPDeviceFinder(boolean IPV4) {
-        mInetDeviceAdr = getDeviceLocalIP(IPV4);
-        Log.v(TAG, "IP is: " + mInetDeviceAdr);
+    public UPnPDeviceFinder(boolean useIPv4) {
+        InetAddress inetDeviceAdr = getDeviceLocalIP(useIPv4);
+        Log.v(TAG, "IP is: " + inetDeviceAdr);
 
         try {
-            mSock = new UPnPSocket(mInetDeviceAdr);
+            mSock = new UPnPSocket(inetDeviceAdr);
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e(TAG, "failed creating socket", e);
         }
     }
 
@@ -81,11 +81,15 @@ public class UPnPDeviceFinder {
 
                     // Listen to responses from network until the socket timeout
                     while (true) {
-                        Log.v(TAG, "wait for device response");
+                        if (VERBOSE) {
+                            Log.v(TAG, "wait for device response");
+                        }
                         DatagramPacket dp = mSock.receiveMulticastMsg();
                         String receivedString = new String(dp.getData());
                         receivedString = receivedString.substring(0, dp.getLength());
-                        Log.d(TAG, "found device: " + receivedString);
+                        if (VERBOSE) {
+                            Log.d(TAG, "found device: " + receivedString);
+                        }
                         UPnPDevice device = UPnPDevice.getInstance(receivedString);
                         if (device != null) {
                             subscriber.onNext(device);
@@ -93,7 +97,13 @@ public class UPnPDeviceFinder {
                     }
                 } catch (IOException e) {
                     //sock timeout will get us out of the loop
-                    Log.w(TAG, "time out");
+                    if (e instanceof SocketTimeoutException) {
+                        if (VERBOSE) {
+                            Log.w(TAG, "finished reading from multicast responses");
+                        }
+                    } else {
+                        Log.e(TAG, "failed reading from multicast responses", e);
+                    }
                     mSock.close();
                     subscriber.onCompleted();
                 }
@@ -124,7 +134,9 @@ public class UPnPDeviceFinder {
         public void sendMulticastMsg() throws IOException {
             String ssdpMsg = buildSSDPSearchString();
 
-            Log.v(TAG, "sendMulticastMsg: " + ssdpMsg);
+            if (VERBOSE) {
+                Log.v(TAG, "sending multicast: " + ssdpMsg);
+            }
 
             DatagramPacket dp = new DatagramPacket(ssdpMsg.getBytes(), ssdpMsg.length(), mMulticastGroup);
             mMultiSocket.send(dp);
@@ -165,7 +177,9 @@ public class UPnPDeviceFinder {
         content.append("ST: upnp:rootdevice").append(NEWLINE);
         content.append(NEWLINE);
 
-        Log.v(TAG, content.toString());
+        if (VERBOSE) {
+            Log.v(TAG, content.toString());
+        }
 
         return content.toString();
     }
@@ -177,27 +191,26 @@ public class UPnPDeviceFinder {
                 List<InetAddress> addrs = Collections.list(intf.getInetAddresses());
                 for (InetAddress addr : addrs) {
                     if (!addr.isLoopbackAddress()) {
-                        Log.v(TAG, "IP from inet is: " + addr);
+                        if (VERBOSE) {
+                            Log.v(TAG, "IP from inet is: " + addr);
+                        }
                         String sAddr = addr.getHostAddress().toUpperCase();
                         boolean isIPv4 = isIPv4Address(sAddr);
                         if (useIPv4) {
                             if (isIPv4) {
-                                Log.v(TAG, "IP v4");
                                 return addr;
                             }
                         } else {
                             if (!isIPv4) {
-                                Log.v(TAG, "IP v6");
-                                //int delim = sAddr.indexOf('%'); // drop ip6 port suffix
-                                //return delim<0 ? sAddr : sAddr.substring(0, delim);
                                 return addr;
                             }
                         }
                     }
                 }
             }
-        } catch (Exception ex) {
-        } // for now eat exceptions
+        } catch (Exception ignore) {
+            // for now ignore exceptions
+        }
         return null;
     }
 

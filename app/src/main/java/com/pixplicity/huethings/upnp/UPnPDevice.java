@@ -184,9 +184,9 @@ public class UPnPDevice {
 	@Override
 	public String toString() {
 		return "UPnPDevice{" +
-				"mLocation=" + mLocation +
-				", mServer='" + mServer + '\'' +
-				", mProperties=" + mProperties +
+				mServer +
+				" at " + getHost() +
+				"; properties: " + mProperties +
 				'}';
 	}
 
