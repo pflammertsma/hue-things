@@ -82,6 +82,10 @@ public class UPnPDevice {
 		return mCachedIconUrl;
 	}
 
+    public String getProperty(String key) {
+	    return mProperties.get(key);
+    }
+
 	public String generateIconUrl() {
 		String path = mProperties.get("xml_icon_url");
 		if (TextUtils.isEmpty(path)) {

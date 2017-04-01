@@ -81,11 +81,11 @@ public class UPnPDeviceFinder {
 
                     // Listen to responses from network until the socket timeout
                     while (true) {
-                        Log.v(TAG, "wait for dev. response");
+                        Log.v(TAG, "wait for device response");
                         DatagramPacket dp = mSock.receiveMulticastMsg();
                         String receivedString = new String(dp.getData());
                         receivedString = receivedString.substring(0, dp.getLength());
-                        Log.d(TAG, "found dev: " + receivedString);
+                        Log.d(TAG, "found device: " + receivedString);
                         UPnPDevice device = UPnPDevice.getInstance(receivedString);
                         if (device != null) {
                             subscriber.onNext(device);

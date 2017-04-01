@@ -7,24 +7,18 @@ import java.io.IOException;
 
 public class MCP3008 {
 
-    private final String csPin;
-    private final String clockPin;
-    private final String mosiPin;
-    private final String misoPin;
-
     private Gpio mCsPin;
     private Gpio mClockPin;
     private Gpio mMosiPin;
     private Gpio mMisoPin;
 
-    public MCP3008(String csPin, String clockPin, String mosiPin, String misoPin) {
-        this.csPin = csPin;
-        this.clockPin = clockPin;
-        this.mosiPin = mosiPin;
-        this.misoPin = misoPin;
+    public MCP3008() {
     }
 
-    public void register() throws IOException {
+    public void register(String csPin, String clockPin, String mosiPin, String misoPin) throws IOException {
+        if (isRegistered()) {
+            throw new IllegalStateException("already registered");
+        }
         PeripheralManagerService service = new PeripheralManagerService();
         mClockPin = service.openGpio(clockPin);
         mCsPin = service.openGpio(csPin);
@@ -35,6 +29,10 @@ public class MCP3008 {
         mCsPin.setDirection(Gpio.DIRECTION_OUT_INITIALLY_LOW);
         mMosiPin.setDirection(Gpio.DIRECTION_OUT_INITIALLY_LOW);
         mMisoPin.setDirection(Gpio.DIRECTION_IN);
+    }
+
+    public boolean isRegistered() {
+        return mClockPin != null;
     }
 
     public int readAdc(int channel) throws IOException {
@@ -104,6 +102,7 @@ public class MCP3008 {
             } catch (IOException ignore) {
                 // do nothing
             }
+            mCsPin = null;
         }
 
         if (mClockPin != null) {
@@ -112,6 +111,7 @@ public class MCP3008 {
             } catch (IOException ignore) {
                 // do nothing
             }
+            mClockPin = null;
         }
 
         if (mMisoPin != null) {
@@ -120,6 +120,7 @@ public class MCP3008 {
             } catch (IOException ignore) {
                 // do nothing
             }
+            mMisoPin = null;
         }
 
         if (mMosiPin != null) {
@@ -128,6 +129,7 @@ public class MCP3008 {
             } catch (IOException ignore) {
                 // do nothing
             }
+            mMosiPin = null;
         }
 
     }
