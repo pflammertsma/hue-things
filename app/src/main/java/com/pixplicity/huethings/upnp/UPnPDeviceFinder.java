@@ -49,6 +49,11 @@ public class UPnPDeviceFinder {
     public static final int MAX_REPLY_TIME = 60;
     public static final int MSG_TIMEOUT = MAX_REPLY_TIME * 2 * 1000;
 
+    // From Apache InetAddressUtils
+    // https://hc.apache.org/httpcomponents-client-ga/httpclient/apidocs/org/apache/http/conn/util/InetAddressUtils.html
+    private static final Pattern IPV4_PATTERN =
+            Pattern.compile("^(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)){3}$");
+
     private UPnPSocket mSock;
 
     public UPnPDeviceFinder() {
@@ -88,7 +93,7 @@ public class UPnPDeviceFinder {
                         String receivedString = new String(dp.getData());
                         receivedString = receivedString.substring(0, dp.getLength());
                         if (VERBOSE) {
-                            Log.d(TAG, "found device: " + receivedString);
+                            Log.v(TAG, "found device: " + receivedString);
                         }
                         UPnPDevice device = UPnPDevice.getInstance(receivedString);
                         if (device != null) {
@@ -213,11 +218,6 @@ public class UPnPDeviceFinder {
         }
         return null;
     }
-
-    // From Apache InetAddressUtils
-    // https://hc.apache.org/httpcomponents-client-ga/httpclient/apidocs/org/apache/http/conn/util/InetAddressUtils.html
-    private static final Pattern IPV4_PATTERN =
-            Pattern.compile("^(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)){3}$");
 
     private static final boolean isIPv4Address(final String input) {
         return IPV4_PATTERN.matcher(input).matches();

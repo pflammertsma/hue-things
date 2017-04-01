@@ -126,16 +126,13 @@ public class HueBridge {
             return;
         }
 
-        boolean switchedOn = true;
         int hue2 = Math.round(65000 * hue);
         int saturation2 = Math.round(254 * saturation);
         int brightness2 = Math.round(254 * brightness);
-
-        //String json = "{\n\t\"on\": " + switchedOn + ",\n\t\"sat\": " + saturation2 + ", \n\t\"bri\": " + brightness2 + ", \n\t\"hue\": " + hue2 + "\n}";
+        boolean switchedOn = brightness2 >= 10;
 
         LightRequest lightRequest = new LightRequest(switchedOn, hue2, saturation2, brightness2);
         String json = mGson.toJson(lightRequest);
-        //Log.d("MCP3008", String.format("json: %s", json));
 
         String urlSuffix = String.format(Locale.ENGLISH, URL_LIGHTS, mLightId);
 
