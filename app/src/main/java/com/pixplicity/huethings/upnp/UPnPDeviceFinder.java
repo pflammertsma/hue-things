@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.pixplicity.huethings;
+package com.pixplicity.huethings.upnp;
 
 import android.util.Log;
 

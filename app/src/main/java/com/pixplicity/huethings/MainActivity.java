@@ -5,6 +5,9 @@ import android.os.Bundle;
 import android.util.Log;
 
 import com.google.android.things.pio.PeripheralManagerService;
+import com.pixplicity.huethings.gpio.InputMonitor;
+import com.pixplicity.huethings.upnp.UPnPDevice;
+import com.pixplicity.huethings.upnp.UPnPDeviceFinder;
 
 import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Action1;

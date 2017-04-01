@@ -1,4 +1,4 @@
-package com.pixplicity.huethings;
+package com.pixplicity.huethings.gpio;
 
 import android.os.Handler;
 import android.util.Log;

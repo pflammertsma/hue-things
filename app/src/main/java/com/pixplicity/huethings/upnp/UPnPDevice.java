@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.pixplicity.huethings;
+package com.pixplicity.huethings.upnp;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -22,7 +22,6 @@ import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.util.Comparator;
 import java.util.HashMap;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -35,7 +34,6 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXParseException;
 
 import android.text.TextUtils;
-import android.util.Log;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;

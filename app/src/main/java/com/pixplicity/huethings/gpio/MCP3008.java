@@ -1,4 +1,4 @@
-package com.pixplicity.huethings;
+package com.pixplicity.huethings.gpio;
 
 import com.google.android.things.pio.Gpio;
 import com.google.android.things.pio.PeripheralManagerService;
