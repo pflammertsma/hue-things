@@ -3,7 +3,7 @@ package com.pixplicity.huethings.gpio;
 import android.os.Handler;
 import android.util.Log;
 
-import com.pixplicity.huethings.network.HueManager;
+import com.pixplicity.huethings.network.HueBridge;
 
 import java.io.IOException;
 
@@ -91,7 +91,7 @@ public class InputMonitor {
     private final Rolling mHue = new Rolling(SMOOTH_SAMPLING_RATE);
     private final Rolling mSaturation = new Rolling(SMOOTH_SAMPLING_RATE);
 
-    private HueManager mHueManager = new HueManager();
+    private HueBridge mHueBridge;
 
     public void start() {
         try {
@@ -116,6 +116,10 @@ public class InputMonitor {
         }
     }
 
+    public void setHueBridge(HueBridge hueBridge) {
+        mHueBridge = hueBridge;
+    }
+
     private float normalize(int channel) throws IOException {
         float val = mMCP3008.readAdc(channel);
         if (INVERTED) {
@@ -126,6 +130,10 @@ public class InputMonitor {
     }
 
     private void setLight(float hue, float saturation, float brightness) throws IOException {
+        if (mHueBridge == null) {
+            // Not ready yet
+            return;
+        }
         Log.d("MCP3008", "hue: " + hue + " \tsat: " + saturation + " \tbri: " + brightness);
         if (mRequestBusy || mRequestTimestamp > System.currentTimeMillis() - REQUEST_FREQUENCY_MS) {
             return;
@@ -135,12 +143,13 @@ public class InputMonitor {
                 mLastSaturation >= 0 && Math.abs(mLastSaturation - saturation) < THRESHOLD) {
             return;
         }
+
         mLastBrightness = brightness;
         mRequestBusy = true;
         mRequestTimestamp = System.currentTimeMillis();
 
-        mHueManager.setLights(hue, saturation, brightness,
-                              new Callback() {
+        mHueBridge.setLights(hue, saturation, brightness,
+                             new Callback() {
                                       @Override
                                       public void onFailure(Call call, IOException e) {
                                           mRequestBusy = false;

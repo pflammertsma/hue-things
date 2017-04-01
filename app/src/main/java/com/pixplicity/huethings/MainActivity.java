@@ -6,6 +6,7 @@ import android.util.Log;
 
 import com.google.android.things.pio.PeripheralManagerService;
 import com.pixplicity.huethings.gpio.InputMonitor;
+import com.pixplicity.huethings.network.HueBridgeConnector;
 import com.pixplicity.huethings.upnp.UPnPDevice;
 import com.pixplicity.huethings.upnp.UPnPDeviceFinder;
 
@@ -19,6 +20,7 @@ public class MainActivity extends Activity {
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private InputMonitor mInputMonitor = new InputMonitor();
+    private HueBridgeConnector mHueBridgeConnector = new HueBridgeConnector(mInputMonitor);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,9 +56,7 @@ public class MainActivity extends Activity {
                                       String bridgeId = device.getProperty("upnp_hue-bridgeid");
                                       if (bridgeId != null) {
                                           Log.d(TAG, "Philips Hue bridge discovered: " + device);
-                                          if (!mInputMonitor.isStarted()) {
-                                              mInputMonitor.start();
-                                          }
+                                          mHueBridgeConnector.connect(device.getHost(), bridgeId);
                                       } else {
                                           Log.d(TAG, "Device discovered: " + device);
                                       }
@@ -66,6 +66,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onStop() {
+        mHueBridgeConnector.stop();
         mInputMonitor.stop();
 
         super.onStop();
