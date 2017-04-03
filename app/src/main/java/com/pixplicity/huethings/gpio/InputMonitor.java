@@ -3,6 +3,8 @@ package com.pixplicity.huethings.gpio;
 import android.os.Handler;
 import android.util.Log;
 
+import com.google.android.things.pio.Gpio;
+import com.google.android.things.pio.PeripheralManagerService;
 import com.pixplicity.huethings.network.HueBridge;
 
 import java.io.IOException;
@@ -24,6 +26,12 @@ public class InputMonitor {
     private static final float MAX_READING = 1023f;
     private static final boolean INVERTED = true;
 
+    private static final String DHT_PIN = "BCM18";
+    private static final String CS_PIN = "BCM22";
+    private static final String CLOCK_PIN = "BCM4";
+    private static final String MOSI_PIN = "BCM17";
+    private static final String MISO_PIN = "BCM27";
+
     // CS (chip select) = BCM22
     // Clock            = BCM4
     // DOUT/MISO        = BCM27
@@ -34,7 +42,8 @@ public class InputMonitor {
 
     private Runnable mReadAdcRunnable = new Runnable() {
 
-        public static final boolean SHOW_ALL_CHANNELS = false;
+        private static final boolean SHOW_RAW_DHT = false;
+        private static final boolean SHOW_ALL_CHANNELS = false;
 
         @Override
         public void run() {
@@ -43,6 +52,10 @@ public class InputMonitor {
             }
 
             try {
+                if (SHOW_RAW_DHT) {
+                    Log.d(TAG, "DHT: " + mPinDht.getValue());
+                }
+
                 if (SHOW_ALL_CHANNELS) {
                     Log.d(TAG, "ADC 0: " + mMCP3008.readAdc(0x0));
                     Log.d(TAG, "ADC 1: " + mMCP3008.readAdc(0x1));
@@ -94,9 +107,17 @@ public class InputMonitor {
 
     private HueBridge mHueBridge;
 
+    private Gpio mPinDht;
+
     public void start() {
         try {
-            mMCP3008.register("BCM22", "BCM4", "BCM17", "BCM27");
+            PeripheralManagerService service = new PeripheralManagerService();
+            mPinDht = service.openGpio(DHT_PIN);
+            mPinDht.setDirection(Gpio.DIRECTION_IN);
+
+            mMCP3008.register(CS_PIN, CLOCK_PIN, MOSI_PIN, MISO_PIN);
+
+            // Start looping runnable
             mHandler.post(mReadAdcRunnable);
         } catch (IOException e) {
             Log.e(TAG, "MCP initialization error", e);
@@ -108,6 +129,13 @@ public class InputMonitor {
     }
 
     public void stop() {
+        if (mPinDht != null) {
+            try {
+                mPinDht.close();
+            } catch (IOException ignore) {
+            }
+        }
+
         if (mMCP3008 != null) {
             mMCP3008.unregister();
         }
@@ -136,8 +164,8 @@ public class InputMonitor {
             return;
         }
         Log.d("MCP3008",
-              String.format(Locale.ENGLISH, "\thue: %.3f \tsat: %.3f \tbri: %.3f",
-                            hue, saturation, brightness));
+                String.format(Locale.ENGLISH, "\thue: %.3f \tsat: %.3f \tbri: %.3f",
+                        hue, saturation, brightness));
         if (mRequestBusy || mRequestTimestamp > System.currentTimeMillis() - REQUEST_FREQUENCY_MS) {
             return;
         }
@@ -154,17 +182,17 @@ public class InputMonitor {
         mRequestTimestamp = System.currentTimeMillis();
 
         mHueBridge.setLights(hue, saturation, brightness,
-                             new Callback() {
-                                      @Override
-                                      public void onFailure(Call call, IOException e) {
-                                          mRequestBusy = false;
-                                      }
+                new Callback() {
+                    @Override
+                    public void onFailure(Call call, IOException e) {
+                        mRequestBusy = false;
+                    }
 
-                                      @Override
-                                      public void onResponse(Call call, Response response) throws IOException {
-                                          mRequestBusy = false;
-                                      }
-                                  });
+                    @Override
+                    public void onResponse(Call call, Response response) throws IOException {
+                        mRequestBusy = false;
+                    }
+                });
     }
 
     public class Rolling {
