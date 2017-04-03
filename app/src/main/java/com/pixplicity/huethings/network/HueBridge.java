@@ -158,7 +158,10 @@ public class HueBridge {
 
     public static class Descriptor {
 
+        @SerializedName("host")
         private final String mHost;
+
+        @SerializedName("bridge_id")
         private final String mBridgeId;
 
         public Descriptor(String host, String bridgeId) {

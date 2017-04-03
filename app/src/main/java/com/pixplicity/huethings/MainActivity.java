@@ -14,9 +14,9 @@ import com.pixplicity.huethings.upnp.UPnPDevice;
 import com.pixplicity.huethings.upnp.UPnPDeviceFinder;
 
 import java.io.IOException;
+import java.util.List;
 
 import rx.android.schedulers.AndroidSchedulers;
-import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.schedulers.Schedulers;
 
@@ -66,29 +66,38 @@ public class MainActivity extends Activity {
                                   @Override
                                   public Boolean call(UPnPDevice device) {
                                       try {
-                                          device.downloadSpecs();
+                                          String bridgeId = device.getProperty("upnp_hue-bridgeid");
+                                          if (bridgeId != null) {
+                                              device.downloadSpecs();
+
+                                              Log.d(TAG, "Philips Hue bridge discovered: " + device);
+                                              mHueBridgeConnector.connectLoop(device.getHost(), bridgeId);
+                                              return true;
+                                          } else {
+                                              Log.d(TAG, "Device discovered: " + device);
+                                          }
                                       } catch (Exception e) {
                                           // Ignore errors
                                           Log.e(TAG, "failed obtaining device specs", e);
-                                          return false;
                                       }
-                                      return true;
+                                      return false;
                                   }
                               })
                               .subscribeOn(Schedulers.io())
                               .observeOn(AndroidSchedulers.mainThread())
-                              .subscribe(new Action1<UPnPDevice>() {
+                              .toList()
+                              .map(new Func1<List<UPnPDevice>, List<UPnPDevice>>() {
                                   @Override
-                                  public void call(UPnPDevice device) {
-                                      String bridgeId = device.getProperty("upnp_hue-bridgeid");
-                                      if (bridgeId != null) {
-                                          Log.d(TAG, "Philips Hue bridge discovered: " + device);
-                                          mHueBridgeConnector.connectLoop(device.getHost(), bridgeId);
-                                      } else {
-                                          Log.d(TAG, "Device discovered: " + device);
+                                  public List<UPnPDevice> call(List<UPnPDevice> devices) {
+                                      Log.d(TAG, "device found: " + devices.size());
+                                      if (devices.isEmpty()) {
+                                          throw new RuntimeException();
                                       }
+                                      return devices;
                                   }
-                              });
+                              })
+                              .retry()
+                              .subscribe();
     }
 
     @Override

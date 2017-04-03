@@ -16,6 +16,12 @@
 
 package com.pixplicity.huethings.upnp;
 
+import android.text.TextUtils;
+
+import org.w3c.dom.Document;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXParseException;
+
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.InetAddress;
@@ -29,165 +35,157 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathFactory;
 
-import org.w3c.dom.Document;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXParseException;
-
-import android.text.TextUtils;
-
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
 public class UPnPDevice {
 
-	private String mRawUPnP;
-	private String mRawXml;
-	private URL mLocation;
-	private String mServer;
+    private String mRawUPnP;
+    private String mRawXml;
+    private URL mLocation;
+    private String mServer;
 
-	private HashMap<String, String> mProperties;
-	private String mCachedIconUrl;
+    private HashMap<String, String> mProperties;
+    private String mCachedIconUrl;
 
-	private UPnPDevice() {
-	}
-
-	public String getHost() {
-		return mLocation.getHost();
-	}
-
-	public InetAddress getInetAddress() throws UnknownHostException {
-		return InetAddress.getByName(getHost());
-	}
-
-	public URL getLocation() {
-		return mLocation;
-	}
-
-	public String getRawUPnP() {
-		return mRawUPnP;
-	}
-
-	public String getRawXml() {
-		return mRawXml;
-	}
-
-	public String getServer() {
-		return mServer;
-	}
-
-	public String getIconUrl() {
-		return mCachedIconUrl;
-	}
-
-    public String getProperty(String key) {
-	    return mProperties.get(key);
+    private UPnPDevice() {
     }
 
-	public String generateIconUrl() {
-		String path = mProperties.get("xml_icon_url");
-		if (TextUtils.isEmpty(path)) {
-			return null;
-		}
-		if (path.startsWith("/")) {
-			path = path.substring(1);
-		}
-		mCachedIconUrl = mLocation.getProtocol() + "://" + mLocation.getHost() + ":" + mLocation.getPort() + "/" + path;
-		return mCachedIconUrl;
-	}
+    public String getHost() {
+        return mLocation.getHost();
+    }
 
-	public String getFriendlyName() {
-		String friendlyName = mProperties.get("xml_friendly_name");
-		return friendlyName;
-	}
+    public InetAddress getInetAddress() throws UnknownHostException {
+        return InetAddress.getByName(getHost());
+    }
 
-	public String getScrubbedFriendlyName() {
-		String friendlyName = mProperties.get("xml_friendly_name");
+    public URL getLocation() {
+        return mLocation;
+    }
 
-		// Special case for SONOS: remove the leading ip address from the friendly name
-		// "192.168.1.123 - Sonos PLAY:1" => "Sonos PLAY:1"
-		if (friendlyName != null && friendlyName.startsWith(getHost() + " - ")) {
-			friendlyName = friendlyName.substring(getHost().length() + 3);
-		}
+    public String getRawUPnP() {
+        return mRawUPnP;
+    }
 
-		return friendlyName;
-	}
+    public String getRawXml() {
+        return mRawXml;
+    }
 
-	////////////////////////////////////////////////////////////////////////////////
-	// UPnP Response Parsing
-	////////////////////////////////////////////////////////////////////////////////
+    public String getServer() {
+        return mServer;
+    }
 
-	public static UPnPDevice getInstance(String raw) {
-		HashMap<String, String> parsed = parseRaw(raw);
-		try {
-			UPnPDevice device = new UPnPDevice();
-			device.mRawUPnP = raw;
-			device.mProperties = parsed;
-			device.mLocation = new URL(parsed.get("upnp_location"));
-			device.mServer = parsed.get("upnp_server");
-			return device;
-		}
-		catch (MalformedURLException e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
+    public String getIconUrl() {
+        return mCachedIconUrl;
+    }
 
-	private static HashMap<String, String> parseRaw(String raw) {
-		HashMap<String, String> results = new HashMap<>();
-		for (String line : raw.split("\r\n")) {
-			int colon = line.indexOf(":");
-			if (colon != -1) {
-				String key = line.substring(0, colon).trim().toLowerCase();
-				String value = line.substring(colon + 1).trim();
-				results.put("upnp_" + key, value);
-			}
-		}
-		return results;
-	}
+    public String getProperty(String key) {
+        return mProperties.get(key);
+    }
 
-	////////////////////////////////////////////////////////////////////////////////
-	// UPnP Specification Downloading / Parsing
-	////////////////////////////////////////////////////////////////////////////////
+    public String generateIconUrl() {
+        String path = mProperties.get("xml_icon_url");
+        if (TextUtils.isEmpty(path)) {
+            return null;
+        }
+        if (path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        mCachedIconUrl = mLocation.getProtocol() + "://" + mLocation.getHost() + ":" + mLocation.getPort() + "/" + path;
+        return mCachedIconUrl;
+    }
 
-	private transient final OkHttpClient mClient = new OkHttpClient();
+    public String getFriendlyName() {
+        String friendlyName = mProperties.get("xml_friendly_name");
+        return friendlyName;
+    }
 
-	public void downloadSpecs() throws Exception {
-		Request request = new Request.Builder()
-			.url(mLocation)
-			.build();
+    public String getScrubbedFriendlyName() {
+        String friendlyName = mProperties.get("xml_friendly_name");
 
-		Response response = mClient.newCall(request).execute();
-		if (!response.isSuccessful()) {
-			throw new IOException("Unexpected code " + response);
-		}
+        // Special case for SONOS: remove the leading ip address from the friendly name
+        // "192.168.1.123 - Sonos PLAY:1" => "Sonos PLAY:1"
+        if (friendlyName != null && friendlyName.startsWith(getHost() + " - ")) {
+            friendlyName = friendlyName.substring(getHost().length() + 3);
+        }
 
-		mRawXml = response.body().string();
+        return friendlyName;
+    }
 
-		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-		DocumentBuilder db = dbf.newDocumentBuilder();
-		InputSource source = new InputSource(new StringReader(mRawXml));
-		Document doc;
-		try {
-			doc = db.parse(source);
-		}
-		catch (SAXParseException e) {
-			return;
-		}
-		XPath xPath = XPathFactory.newInstance().newXPath();
+    ////////////////////////////////////////////////////////////////////////////////
+    // UPnP Response Parsing
+    ////////////////////////////////////////////////////////////////////////////////
 
-		mProperties.put("xml_icon_url", xPath.compile("//icon/url").evaluate(doc));
-		generateIconUrl();
-		mProperties.put("xml_friendly_name", xPath.compile("//friendlyName").evaluate(doc));
-	}
+    public static UPnPDevice getInstance(String raw) {
+        HashMap<String, String> parsed = parseRaw(raw);
+        try {
+            UPnPDevice device = new UPnPDevice();
+            device.mRawUPnP = raw;
+            device.mProperties = parsed;
+            device.mLocation = new URL(parsed.get("upnp_location"));
+            device.mServer = parsed.get("upnp_server");
+            return device;
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 
-	@Override
-	public String toString() {
-		return "UPnPDevice{" +
-				mServer +
-				" at " + getHost() +
-				"; properties: " + mProperties +
-				'}';
-	}
+    private static HashMap<String, String> parseRaw(String raw) {
+        HashMap<String, String> results = new HashMap<>();
+        for (String line : raw.split("\r\n")) {
+            int colon = line.indexOf(":");
+            if (colon != -1) {
+                String key = line.substring(0, colon).trim().toLowerCase();
+                String value = line.substring(colon + 1).trim();
+                results.put("upnp_" + key, value);
+            }
+        }
+        return results;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // UPnP Specification Downloading / Parsing
+    ////////////////////////////////////////////////////////////////////////////////
+
+    private transient final OkHttpClient mClient = new OkHttpClient();
+
+    public void downloadSpecs() throws Exception {
+        Request request = new Request.Builder()
+                .url(mLocation)
+                .build();
+
+        Response response = mClient.newCall(request).execute();
+        if (!response.isSuccessful()) {
+            throw new IOException("Unexpected code " + response);
+        }
+
+        mRawXml = response.body().string();
+
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        DocumentBuilder db = dbf.newDocumentBuilder();
+        InputSource source = new InputSource(new StringReader(mRawXml));
+        Document doc;
+        try {
+            doc = db.parse(source);
+        } catch (SAXParseException e) {
+            return;
+        }
+        XPath xPath = XPathFactory.newInstance().newXPath();
+
+        mProperties.put("xml_icon_url", xPath.compile("//icon/url").evaluate(doc));
+        generateIconUrl();
+        mProperties.put("xml_friendly_name", xPath.compile("//friendlyName").evaluate(doc));
+    }
+
+    @Override
+    public String toString() {
+        return "UPnPDevice{" +
+                mServer +
+                " at " + getHost() +
+                "; properties: " + mProperties +
+                '}';
+    }
 
 }
