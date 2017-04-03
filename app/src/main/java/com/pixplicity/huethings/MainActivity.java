@@ -5,10 +5,15 @@ import android.os.Bundle;
 import android.util.Log;
 
 import com.google.android.things.pio.PeripheralManagerService;
+import com.pixplicity.easyprefs.library.Prefs;
 import com.pixplicity.huethings.gpio.InputMonitor;
+import com.pixplicity.huethings.network.CapabilitiesCallback;
+import com.pixplicity.huethings.network.HueBridge;
 import com.pixplicity.huethings.network.HueBridgeConnector;
 import com.pixplicity.huethings.upnp.UPnPDevice;
 import com.pixplicity.huethings.upnp.UPnPDeviceFinder;
+
+import java.io.IOException;
 
 import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Action1;
@@ -34,6 +39,28 @@ public class MainActivity extends Activity {
     protected void onStart() {
         super.onStart();
 
+        String bridgeJson = Prefs.getString("last_bridge", null);
+        if (bridgeJson != null) {
+            HueBridge.Descriptor bridge = GsonUtils.get().fromJson(bridgeJson, HueBridge.Descriptor.class);
+            mHueBridgeConnector.connect(bridge.getHost(), bridge.getBridgeId(),
+                    new CapabilitiesCallback() {
+                        @Override
+                        public void onSuccess(HueBridge hueBridge, HueBridge.CapabilitiesResponse success) {
+                            // Awesome, we're connected already
+                        }
+
+                        @Override
+                        public void onFailure(HueBridge hueBridge,
+                                              HueBridge.ErrorResponse.ResponseError error, IOException e) {
+                            startBridgeScan();
+                        }
+                    });
+        } else {
+            startBridgeScan();
+        }
+    }
+
+    private void startBridgeScan() {
         new UPnPDeviceFinder().observe()
                               .filter(new Func1<UPnPDevice, Boolean>() {
                                   @Override
@@ -56,7 +83,7 @@ public class MainActivity extends Activity {
                                       String bridgeId = device.getProperty("upnp_hue-bridgeid");
                                       if (bridgeId != null) {
                                           Log.d(TAG, "Philips Hue bridge discovered: " + device);
-                                          mHueBridgeConnector.connect(device.getHost(), bridgeId);
+                                          mHueBridgeConnector.connectLoop(device.getHost(), bridgeId);
                                       } else {
                                           Log.d(TAG, "Device discovered: " + device);
                                       }

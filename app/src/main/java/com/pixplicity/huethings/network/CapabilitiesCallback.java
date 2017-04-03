@@ -4,8 +4,8 @@ import java.io.IOException;
 
 public interface CapabilitiesCallback {
 
-    void onSuccess(HueBridge.CapabilitiesResponse success);
+    void onSuccess(HueBridge hueBridge, HueBridge.CapabilitiesResponse success);
 
-    void onFailure(HueBridge.ErrorResponse.ResponseError error, IOException e);
+    void onFailure(HueBridge hueBridge, HueBridge.ErrorResponse.ResponseError error, IOException e);
 
 }

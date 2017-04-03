@@ -2,8 +2,8 @@ package com.pixplicity.huethings.network;
 
 import android.util.Log;
 
-import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
+import com.pixplicity.huethings.GsonUtils;
 
 import java.io.IOException;
 import java.util.Locale;
@@ -37,7 +37,6 @@ public class HueBridge {
     private OkHttpClient mOkHttpClient = new OkHttpClient.Builder()
             .addInterceptor(mOkHttpLogging)
             .build();
-    private Gson mGson = new Gson();
 
     public HueBridge(String bridgeIp) {
         mBridgeIp = bridgeIp;
@@ -58,7 +57,7 @@ public class HueBridge {
 
     public void authenticate(final AuthenticationCallback callback) {
         AuthRequest authRequest = new AuthRequest(DEVICE_TYPE);
-        String json = mGson.toJson(authRequest);
+        String json = GsonUtils.get().toJson(authRequest);
 
         RequestBody body = RequestBody.create(JSON, json);
         Request request = new Request.Builder()
@@ -69,16 +68,14 @@ public class HueBridge {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 String json = response.body().string();
-                try {
-                    AuthResponse[] authResponse = mGson.fromJson(
-                            json, AuthResponse[].class);
-                    AuthResponse.AuthResponseSuccess success = authResponse[0].success;
+                AuthResponse[] authResponse = GsonUtils.get().fromJson(
+                        json, AuthResponse[].class);
+                AuthResponse.AuthResponseSuccess success = authResponse[0].success;
+                if (success != null) {
                     mBridgeToken = success.username;
                     callback.onSuccess(success);
-                } catch (IllegalStateException e) {
-                    ErrorResponse[] errors = mGson.fromJson(
-                            json, ErrorResponse[].class);
-                    ErrorResponse.ResponseError error = errors[0].error;
+                } else {
+                    ErrorResponse.ResponseError error = authResponse[0].error;
                     callback.onFailure(error, null);
                 }
             }
@@ -91,7 +88,7 @@ public class HueBridge {
         });
     }
 
-    public void capabilities(final CapabilitiesCallback callback) {
+    public void capabilities(final HueBridge hueBridge, final CapabilitiesCallback callback) {
         Request request = new Request.Builder()
                 .url(getUrl() + URL_CAPABILITIES)
                 .get()
@@ -101,21 +98,21 @@ public class HueBridge {
             public void onResponse(Call call, Response response) throws IOException {
                 String json = response.body().string();
                 try {
-                    CapabilitiesResponse capabilitiesResponse = mGson.fromJson(
+                    CapabilitiesResponse capabilitiesResponse = GsonUtils.get().fromJson(
                             json, CapabilitiesResponse.class);
-                    callback.onSuccess(capabilitiesResponse);
+                    callback.onSuccess(hueBridge, capabilitiesResponse);
                 } catch (IllegalStateException e) {
-                    ErrorResponse[] errors = mGson.fromJson(
+                    ErrorResponse[] errors = GsonUtils.get().fromJson(
                             json, ErrorResponse[].class);
                     ErrorResponse.ResponseError error = errors[0].error;
-                    callback.onFailure(error, null);
+                    callback.onFailure(hueBridge, error, null);
                 }
             }
 
             @Override
             public void onFailure(Call call, IOException e) {
                 Log.e(TAG, "request failed", e);
-                callback.onFailure(null, e);
+                callback.onFailure(hueBridge, null, e);
             }
         });
     }
@@ -134,7 +131,7 @@ public class HueBridge {
         //String json = "{\n\t\"on\": " + switchedOn + ",\n\t\"sat\": " + saturation2 + ", \n\t\"bri\": " + brightness2 + ", \n\t\"hue\": " + hue2 + "\n}";
 
         LightRequest lightRequest = new LightRequest(switchedOn, hue2, saturation2, brightness2);
-        String json = mGson.toJson(lightRequest);
+        String json = GsonUtils.get().toJson(lightRequest);
         //Log.d("MCP3008", String.format("json: %s", json));
 
         String urlSuffix = String.format(Locale.ENGLISH, URL_LIGHTS, mLightId);
@@ -157,6 +154,26 @@ public class HueBridge {
                 callback.onFailure(call, e);
             }
         });
+    }
+
+    public static class Descriptor {
+
+        private final String mHost;
+        private final String mBridgeId;
+
+        public Descriptor(String host, String bridgeId) {
+            mHost = host;
+            mBridgeId = bridgeId;
+        }
+
+        public String getHost() {
+            return mHost;
+        }
+
+        public String getBridgeId() {
+            return mBridgeId;
+        }
+
     }
 
     private class LightRequest {
@@ -193,7 +210,7 @@ public class HueBridge {
 
     }
 
-    public class AuthResponse {
+    public class AuthResponse extends ErrorResponse {
 
         @SerializedName("success")
         AuthResponseSuccess success;
