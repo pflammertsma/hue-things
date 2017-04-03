@@ -40,7 +40,7 @@ import rx.Subscriber;
 public class UPnPDeviceFinder {
 
     private static String TAG = UPnPDeviceFinder.class.getSimpleName();
-    private static final boolean VERBOSE = true;
+    private static final boolean VERBOSE = false;
 
     private static final String MULTICAST_ADDRESS = "239.255.255.250";
     private static final int MULTICAST_PORT = 1900;
@@ -127,7 +127,9 @@ public class UPnPDeviceFinder {
         private MulticastSocket mMultiSocket;
 
         UPnPSocket(InetAddress deviceIp) throws IOException {
-            Log.v(TAG, "connecting to " + deviceIp.toString());
+            if (VERBOSE) {
+                Log.v(TAG, "device IP: " + deviceIp.toString());
+            }
 
             mMulticastGroup = new InetSocketAddress(MULTICAST_ADDRESS, MULTICAST_PORT);
             mMultiSocket = new MulticastSocket(new InetSocketAddress(deviceIp, 0));

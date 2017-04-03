@@ -42,6 +42,7 @@ public class MainActivity extends Activity {
         String bridgeJson = Prefs.getString("last_bridge", null);
         if (bridgeJson != null) {
             HueBridge.Descriptor bridge = GsonUtils.get().fromJson(bridgeJson, HueBridge.Descriptor.class);
+            Log.d(TAG, "reconnecting to previous bridge " + bridge);
             mHueBridgeConnector.connect(bridge.getHost(), bridge.getBridgeId(),
                     new CapabilitiesCallback() {
                         @Override

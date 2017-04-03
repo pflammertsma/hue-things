@@ -39,11 +39,9 @@ public class HueBridgeConnector {
                             public void onSuccess(HueBridge.AuthResponse.AuthResponseSuccess success) {
                                 // Store the token for later use
                                 String bridgeToken = success.username;
-                                String bridge = GsonUtils.get().toJson(new HueBridge.Descriptor(host, bridgeId));
-                                Prefs.putString("last_bridge", bridge);
                                 Prefs.putString("bridge_" + bridgeId, bridgeToken);
 
-                                onConnected(bridgeToken, hueBridge);
+                                onConnected(bridgeToken, new HueBridge.Descriptor(host, bridgeId), hueBridge);
                             }
 
                             @Override
@@ -74,7 +72,7 @@ public class HueBridgeConnector {
             hueBridge.capabilities(hueBridge, new CapabilitiesCallback() {
                 @Override
                 public void onSuccess(HueBridge hueBridge, HueBridge.CapabilitiesResponse success) {
-                    onConnected(bridgeToken, hueBridge);
+                    onConnected(bridgeToken, new HueBridge.Descriptor(host, bridgeId), hueBridge);
                     if (callback != null) {
                         callback.onSuccess(hueBridge, success);
                     }
@@ -100,7 +98,12 @@ public class HueBridgeConnector {
         }
     }
 
-    public void onConnected(String bridgeToken, HueBridge hueBridge) {
+    public void onConnected(String bridgeToken,
+                            HueBridge.Descriptor bridgeDescriptor,
+                            HueBridge hueBridge) {
+        // Store the last connection
+        Prefs.putString("last_bridge", GsonUtils.get().toJson(bridgeDescriptor));
+
         // Stop discovery now that we're connected
         stop();
 
@@ -112,7 +115,6 @@ public class HueBridgeConnector {
         if (!mInputMonitor.isStarted()) {
             mInputMonitor.start();
         }
-
     }
 
 }

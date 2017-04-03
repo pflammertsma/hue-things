@@ -177,6 +177,11 @@ public class HueBridge {
             return mBridgeId;
         }
 
+        @Override
+        public String toString() {
+            return "HueBridge{" + mBridgeId + " at " + mHost + '}';
+        }
+
     }
 
     private class LightRequest {
