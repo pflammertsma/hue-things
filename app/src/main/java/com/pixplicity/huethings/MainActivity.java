@@ -89,10 +89,11 @@ public class MainActivity extends Activity {
                               .map(new Func1<List<UPnPDevice>, List<UPnPDevice>>() {
                                   @Override
                                   public List<UPnPDevice> call(List<UPnPDevice> devices) {
-                                      Log.d(TAG, "device found: " + devices.size());
                                       if (devices.isEmpty()) {
+                                          Log.d(TAG, "no UPnP device matches; retrying");
                                           throw new RuntimeException();
                                       }
+                                      Log.d(TAG, "UPnP device matches: " + devices.size());
                                       return devices;
                                   }
                               })

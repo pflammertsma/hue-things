@@ -43,11 +43,11 @@ public class UPnPDeviceFinder {
     private static final boolean VERBOSE = true;
 
     private static final String MULTICAST_ADDRESS = "239.255.255.250";
-
-    private static final int PORT = 1900;
+    private static final int MULTICAST_PORT = 1900;
 
     private static final int MAX_REPLY_TIME_SECONDS = 60;
-    private static final int MULTICAST_TIMEOUT_MILLISECONDS = MAX_REPLY_TIME_SECONDS * 2 * 1000;
+    private static final int MULTICAST_TIMEOUT_MILLISECONDS = MAX_REPLY_TIME_SECONDS * 1000;
+
     private final boolean mUseIPv4;
 
     public UPnPDeviceFinder() {
@@ -78,9 +78,6 @@ public class UPnPDeviceFinder {
 
                     // Listen to responses from network until the socket timeout
                     while (true) {
-                        if (VERBOSE) {
-                            Log.v(TAG, "wait for any UPnP response...");
-                        }
                         DatagramPacket dp = socket.receiveMulticastMsg();
                         String receivedString = new String(dp.getData());
                         receivedString = receivedString.substring(0, dp.getLength());
@@ -90,7 +87,11 @@ public class UPnPDeviceFinder {
                         }
                         if (device != null) {
                             if (VERBOSE) {
-                                Log.d(TAG, "found device: " + device.getHost() + "; " + device.getFriendlyName());
+                                String name = device.getFriendlyName();
+                                if (name == null) {
+                                    name = "(unknown device)";
+                                }
+                                Log.d(TAG, "found device: " + device.getHost() + "; " + name);
                             }
                             subscriber.onNext(device);
                         } else if (VERBOSE) {
@@ -112,7 +113,6 @@ public class UPnPDeviceFinder {
                 }
             }
         });
-
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -120,7 +120,8 @@ public class UPnPDeviceFinder {
     ////////////////////////////////////////////////////////////////////////////////
 
     private static class UPnPSocket {
-        private static String TAG = UPnPSocket.class.getName();
+
+        private static String TAG = UPnPSocket.class.getSimpleName();
 
         private SocketAddress mMulticastGroup;
         private MulticastSocket mMultiSocket;
@@ -128,7 +129,7 @@ public class UPnPDeviceFinder {
         UPnPSocket(InetAddress deviceIp) throws IOException {
             Log.v(TAG, "connecting to " + deviceIp.toString());
 
-            mMulticastGroup = new InetSocketAddress(MULTICAST_ADDRESS, PORT);
+            mMulticastGroup = new InetSocketAddress(MULTICAST_ADDRESS, MULTICAST_PORT);
             mMultiSocket = new MulticastSocket(new InetSocketAddress(deviceIp, 0));
 
             mMultiSocket.setSoTimeout(MULTICAST_TIMEOUT_MILLISECONDS);
@@ -174,7 +175,7 @@ public class UPnPDeviceFinder {
         StringBuilder content = new StringBuilder();
 
         content.append("M-SEARCH * HTTP/1.1").append(NEWLINE);
-        content.append("Host: " + MULTICAST_ADDRESS + ":" + PORT).append(NEWLINE);
+        content.append("Host: " + MULTICAST_ADDRESS + ":" + MULTICAST_PORT).append(NEWLINE);
         content.append("Man:\"ssdp:discover\"").append(NEWLINE);
         content.append("MX: " + MAX_REPLY_TIME_SECONDS).append(NEWLINE);
         content.append("ST: upnp:rootdevice").append(NEWLINE);
