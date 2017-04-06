@@ -30,12 +30,10 @@ public class HueBridge {
 
     private static final String DEVICE_TYPE = "hue_things#rpi3";
 
-    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-
     private static final String URL = "http://%s/api";
 
-    private String mBridgeIp = null; //"10.42.39.194";
-    private String mBridgeToken = null; //"vJB9Z1Q-SnW2Lunvzohsn2O17yVq8kqfhsHnNNa2";
+    private String mBridgeIp = null;
+    private String mBridgeToken = null;
 
     private HttpLoggingInterceptor mOkHttpLogging = new HttpLoggingInterceptor();
     private OkHttpClient mOkHttpClient = new OkHttpClient.Builder()
