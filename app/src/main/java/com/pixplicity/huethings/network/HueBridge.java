@@ -9,6 +9,7 @@ import com.pixplicity.huethings.models.AuthRequest;
 import com.pixplicity.huethings.models.AuthResponse;
 import com.pixplicity.huethings.models.CapabilitiesResponse;
 import com.pixplicity.huethings.models.LightRequest;
+import com.pixplicity.huethings.models.LightResponse;
 import com.pixplicity.huethings.models.LightsResponse;
 
 import org.jetbrains.annotations.Nullable;
@@ -120,7 +121,9 @@ public class HueBridge {
                 mLights.clear();
                 LightsResponse lights = response.body();
                 for (String lightId : lights.keySet()) {
-                    if (lights.get(lightId).state.reachable) {
+                    LightResponse light = lights.get(lightId);
+                    if (light.state.reachable) {
+                        Log.d(TAG, "found light: " + light.name + "; " + light.state);
                         mLights.add(lightId);
                     }
                 }

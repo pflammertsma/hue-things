@@ -24,10 +24,10 @@ public interface HueBridgeInterface {
     @GET("lights")
     Call<LightsResponse> lightsList();
 
-    @PUT("lights/{lightId}")
-    Call<Void> lightUpdate(@Path("lightId") String lightId, @Body LightRequest body);
-
     @GET("lights/{lightId}/status")
     Call<Void> lightStatus(@Path("lightId") LightRequest lightId);
+
+    @PUT("lights/{lightId}/state")
+    Call<Void> lightUpdate(@Path("lightId") String lightId, @Body LightRequest body);
 
 }

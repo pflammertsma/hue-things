@@ -2,6 +2,8 @@ package com.pixplicity.huethings.models;
 
 import com.google.gson.annotations.SerializedName;
 
+import java.util.Arrays;
+
 /*
 {
   "state":{
@@ -77,6 +79,21 @@ public class LightResponse {
 
         @SerializedName("reachable")
         public boolean reachable;
+
+        @Override
+        public String toString() {
+            return "State{" +
+                    "on=" + on +
+                    ", bri=" + bri +
+                    ", hue=" + hue +
+                    ", sat=" + sat +
+                    ", effect='" + effect + '\'' +
+                    ", alert='" + alert + '\'' +
+                    ", colormode='" + colormode + '\'' +
+                    ", xy=" + Arrays.toString(xy) +
+                    ", reachable=" + reachable +
+                    '}';
+        }
 
     }
 
