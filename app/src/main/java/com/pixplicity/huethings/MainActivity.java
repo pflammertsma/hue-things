@@ -7,6 +7,8 @@ import android.util.Log;
 import com.google.android.things.pio.PeripheralManagerService;
 import com.pixplicity.easyprefs.library.Prefs;
 import com.pixplicity.huethings.gpio.InputMonitor;
+import com.pixplicity.huethings.models.CapabilitiesResponse;
+import com.pixplicity.huethings.models.ErrorResponse;
 import com.pixplicity.huethings.network.CapabilitiesCallback;
 import com.pixplicity.huethings.network.HueBridge;
 import com.pixplicity.huethings.network.HueBridgeConnector;
@@ -46,13 +48,13 @@ public class MainActivity extends Activity {
             mHueBridgeConnector.connect(bridge.getHost(), bridge.getBridgeId(),
                     new CapabilitiesCallback() {
                         @Override
-                        public void onSuccess(HueBridge hueBridge, HueBridge.CapabilitiesResponse success) {
+                        public void onSuccess(HueBridge hueBridge, CapabilitiesResponse success) {
                             // Awesome, we're connected already
                         }
 
                         @Override
                         public void onFailure(HueBridge hueBridge,
-                                              HueBridge.ErrorResponse.ResponseError error, IOException e) {
+                                              ErrorResponse.ResponseError error, IOException e) {
                             startBridgeScan();
                         }
                     });

@@ -4,8 +4,17 @@ import android.util.Log;
 
 import com.google.gson.annotations.SerializedName;
 import com.pixplicity.huethings.GsonUtils;
+import com.pixplicity.huethings.models.AuthRequest;
+import com.pixplicity.huethings.models.AuthResponse;
+import com.pixplicity.huethings.models.CapabilitiesResponse;
+import com.pixplicity.huethings.models.ErrorResponse;
+import com.pixplicity.huethings.models.LightRequest;
+import com.pixplicity.huethings.models.LightsResponse;
+
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.util.LinkedList;
 import java.util.Locale;
 
 import okhttp3.Call;
@@ -16,6 +25,8 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.logging.HttpLoggingInterceptor;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 public class HueBridge {
 
@@ -26,17 +37,19 @@ public class HueBridge {
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
     private static final String URL = "http://%s/api";
-    private static final String URL_CAPABILITIES = "/capabilities";
-    private static final String URL_LIGHTS = "/lights/%d/state";
+    private static final String URL_CAPABILITIES = "capabilities";
+    private static final String URL_LIGHTS_STATE = "lights/%s/state";
 
     private String mBridgeIp = null; //"10.42.39.194";
     private String mBridgeToken = null; //"vJB9Z1Q-SnW2Lunvzohsn2O17yVq8kqfhsHnNNa2";
-    private int mLightId = 1;
 
     private HttpLoggingInterceptor mOkHttpLogging = new HttpLoggingInterceptor();
     private OkHttpClient mOkHttpClient = new OkHttpClient.Builder()
             .addInterceptor(mOkHttpLogging)
             .build();
+    private HueBridgeInterface mHueBridgeInterface;
+
+    private final LinkedList<String> mLights = new LinkedList<>();
 
     public HueBridge(String bridgeIp) {
         mBridgeIp = bridgeIp;
@@ -48,6 +61,12 @@ public class HueBridge {
         if (mBridgeToken != null) {
             url += "/" + mBridgeToken;
         }
+        url += "/";
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(url)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+        mHueBridgeInterface = retrofit.create(HueBridgeInterface.class);
         return url;
     }
 
@@ -117,25 +136,56 @@ public class HueBridge {
         });
     }
 
+    public void queryLights(@Nullable
+                            final retrofit2.Callback callback) {
+        mHueBridgeInterface.lightsList().enqueue(new retrofit2.Callback<LightsResponse>() {
+            @Override
+            public void onResponse(retrofit2.Call<LightsResponse> call,
+                                   retrofit2.Response<LightsResponse> response) {
+                mLights.clear();
+                LightsResponse lights = response.body();
+                for (String lightId : lights.keySet()) {
+                    if (lights.get(lightId).state.reachable) {
+                        mLights.add(lightId);
+                    }
+                }
+                if (callback != null) {
+                    callback.onResponse(call, response);
+                }
+            }
+
+            @Override
+            public void onFailure(retrofit2.Call<LightsResponse> call,
+                                  Throwable e) {
+                Log.e(TAG, "request failed", e);
+                if (callback != null) {
+                    callback.onFailure(call, e);
+                }
+            }
+        });
+    }
+
     public void setLights(float hue, float saturation, float brightness, final Callback callback) {
         if (mBridgeIp == null) {
             // We're not configured yet
             return;
         }
 
-        boolean switchedOn = true;
+        boolean switchedOn = brightness > 0.03;
         int hue2 = Math.round(65000 * hue);
         int saturation2 = Math.round(254 * saturation);
         int brightness2 = Math.round(254 * brightness);
 
-        //String json = "{\n\t\"on\": " + switchedOn + ",\n\t\"sat\": " + saturation2 + ", \n\t\"bri\": " + brightness2 + ", \n\t\"hue\": " + hue2 + "\n}";
-
         LightRequest lightRequest = new LightRequest(switchedOn, hue2, saturation2, brightness2);
         String json = GsonUtils.get().toJson(lightRequest);
-        //Log.d("MCP3008", String.format("json: %s", json));
 
-        String urlSuffix = String.format(Locale.ENGLISH, URL_LIGHTS, mLightId);
+        for (String lightId : mLights) {
+            String urlSuffix = String.format(Locale.ENGLISH, URL_LIGHTS_STATE, lightId);
+            doRequest(callback, json, urlSuffix);
+        }
+    }
 
+    private void doRequest(final Callback callback, String json, String urlSuffix) {
         RequestBody body = RequestBody.create(JSON, json);
         Request request = new Request.Builder()
                 .url(getUrl() + urlSuffix)
@@ -180,90 +230,6 @@ public class HueBridge {
         @Override
         public String toString() {
             return "HueBridge{" + mBridgeId + " at " + mHost + '}';
-        }
-
-    }
-
-    private class LightRequest {
-
-        @SerializedName("on")
-        boolean switchedOn;
-
-        @SerializedName("hue")
-        int hue;
-
-        @SerializedName("sat")
-        int saturation;
-
-        @SerializedName("bri")
-        int brightness;
-
-        public LightRequest(boolean switchedOn, int hue, int saturation, int brightness) {
-            this.switchedOn = switchedOn;
-            this.hue = hue;
-            this.saturation = saturation;
-            this.brightness = brightness;
-        }
-
-    }
-
-    private class AuthRequest {
-
-        @SerializedName("devicetype")
-        String deviceType;
-
-        public AuthRequest(String deviceType) {
-            this.deviceType = deviceType;
-        }
-
-    }
-
-    public class AuthResponse extends ErrorResponse {
-
-        @SerializedName("success")
-        AuthResponseSuccess success;
-
-        public class AuthResponseSuccess {
-
-            @SerializedName("username")
-            String username;
-
-        }
-
-    }
-
-    public class CapabilitiesResponse {
-
-        @SerializedName("lights")
-        Availability lights;
-
-        public class Availability {
-
-            @SerializedName("available")
-            int available;
-
-        }
-
-    }
-
-    public class ErrorResponse {
-
-        @SerializedName("error")
-        ResponseError error;
-
-        public class ResponseError {
-
-            @SerializedName("type")
-            int type;
-
-
-            @SerializedName("address")
-            String address;
-
-
-            @SerializedName("description")
-            String description;
-
         }
 
     }

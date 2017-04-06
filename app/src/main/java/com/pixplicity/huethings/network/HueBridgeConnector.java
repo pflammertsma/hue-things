@@ -5,6 +5,9 @@ import android.os.Handler;
 import com.pixplicity.easyprefs.library.Prefs;
 import com.pixplicity.huethings.GsonUtils;
 import com.pixplicity.huethings.gpio.InputMonitor;
+import com.pixplicity.huethings.models.AuthResponse;
+import com.pixplicity.huethings.models.CapabilitiesResponse;
+import com.pixplicity.huethings.models.ErrorResponse;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -23,12 +26,12 @@ public class HueBridgeConnector {
     public void connectLoop(final String host, final String bridgeId) {
         connect(host, bridgeId, new CapabilitiesCallback() {
             @Override
-            public void onSuccess(HueBridge hueBridge, HueBridge.CapabilitiesResponse success) {
+            public void onSuccess(HueBridge hueBridge, CapabilitiesResponse success) {
             }
 
             @Override
             public void onFailure(final HueBridge hueBridge,
-                                  HueBridge.ErrorResponse.ResponseError error, IOException e) {
+                                  ErrorResponse.ResponseError error, IOException e) {
                 // Proceed with attempting to connectLoop
                 final Runnable runnable = new Runnable() {
                     @Override
@@ -36,7 +39,7 @@ public class HueBridgeConnector {
                         final Runnable runnable = this;
                         AuthenticationCallback callback = new AuthenticationCallback() {
                             @Override
-                            public void onSuccess(HueBridge.AuthResponse.AuthResponseSuccess success) {
+                            public void onSuccess(AuthResponse.AuthResponseSuccess success) {
                                 // Store the token for later use
                                 String bridgeToken = success.username;
                                 Prefs.putString("bridge_" + bridgeId, bridgeToken);
@@ -45,7 +48,7 @@ public class HueBridgeConnector {
                             }
 
                             @Override
-                            public void onFailure(HueBridge.ErrorResponse.ResponseError error, IOException e) {
+                            public void onFailure(ErrorResponse.ResponseError error, IOException e) {
                                 mHandler.postDelayed(runnable, 5000);
                             }
                         };
@@ -71,7 +74,7 @@ public class HueBridgeConnector {
             // Check if our session is valid
             hueBridge.capabilities(hueBridge, new CapabilitiesCallback() {
                 @Override
-                public void onSuccess(HueBridge hueBridge, HueBridge.CapabilitiesResponse success) {
+                public void onSuccess(HueBridge hueBridge, CapabilitiesResponse success) {
                     onConnected(bridgeToken, new HueBridge.Descriptor(host, bridgeId), hueBridge);
                     if (callback != null) {
                         callback.onSuccess(hueBridge, success);
@@ -79,7 +82,7 @@ public class HueBridgeConnector {
                 }
 
                 @Override
-                public void onFailure(HueBridge hueBridge, HueBridge.ErrorResponse.ResponseError error, IOException e) {
+                public void onFailure(HueBridge hueBridge, ErrorResponse.ResponseError error, IOException e) {
                     // Forget this token as it's evidently no longer valid
                     Prefs.remove("bridge_" + bridgeId);
                     if (callback != null) {
@@ -100,7 +103,7 @@ public class HueBridgeConnector {
 
     public void onConnected(String bridgeToken,
                             HueBridge.Descriptor bridgeDescriptor,
-                            HueBridge hueBridge) {
+                            final HueBridge hueBridge) {
         // Store the last connection
         Prefs.putString("last_bridge", GsonUtils.get().toJson(bridgeDescriptor));
 
@@ -110,11 +113,22 @@ public class HueBridgeConnector {
         // Finish configuring the HueBridge
         hueBridge.setBridgeToken(bridgeToken);
 
-        // Configure and start the InputMonitor
-        mInputMonitor.setHueBridge(hueBridge);
-        if (!mInputMonitor.isStarted()) {
-            mInputMonitor.start();
-        }
+        hueBridge.queryLights(new retrofit2.Callback() {
+            @Override
+            public void onResponse(retrofit2.Call call, retrofit2.Response response) {
+                // Configure and start the InputMonitor
+                mInputMonitor.setHueBridge(hueBridge);
+                if (!mInputMonitor.isStarted()) {
+                    mInputMonitor.start();
+                }
+            }
+
+            @Override
+            public void onFailure(retrofit2.Call call, Throwable throwable) {
+                // TODO retry?
+            }
+
+        });
     }
 
 }
