@@ -9,7 +9,6 @@ import com.pixplicity.huethings.models.AuthResponse;
 import com.pixplicity.huethings.models.CapabilitiesResponse;
 import com.pixplicity.huethings.models.ErrorResponse;
 
-import java.io.IOException;
 import java.util.LinkedList;
 
 public class HueBridgeConnector {
@@ -31,7 +30,7 @@ public class HueBridgeConnector {
 
             @Override
             public void onFailure(final HueBridge hueBridge,
-                                  ErrorResponse.ResponseError error, IOException e) {
+                                  ErrorResponse.ResponseError error, Throwable e) {
                 // Proceed with attempting to connectLoop
                 final Runnable runnable = new Runnable() {
                     @Override
@@ -48,7 +47,7 @@ public class HueBridgeConnector {
                             }
 
                             @Override
-                            public void onFailure(ErrorResponse.ResponseError error, IOException e) {
+                            public void onFailure(ErrorResponse.ResponseError error, Throwable e) {
                                 mHandler.postDelayed(runnable, 5000);
                             }
                         };
@@ -65,7 +64,8 @@ public class HueBridgeConnector {
         });
     }
 
-    public void connect(final String host, final String bridgeId, final CapabilitiesCallback callback) {
+    public void connect(final String host, final String bridgeId,
+                        final CapabilitiesCallback callback) {
         final HueBridge hueBridge = new HueBridge(host);
 
         final String bridgeToken = Prefs.getString("bridge_" + bridgeId, null);
@@ -82,7 +82,8 @@ public class HueBridgeConnector {
                 }
 
                 @Override
-                public void onFailure(HueBridge hueBridge, ErrorResponse.ResponseError error, IOException e) {
+                public void onFailure(HueBridge hueBridge, ErrorResponse.ResponseError error,
+                                      Throwable e) {
                     // Forget this token as it's evidently no longer valid
                     Prefs.remove("bridge_" + bridgeId);
                     if (callback != null) {

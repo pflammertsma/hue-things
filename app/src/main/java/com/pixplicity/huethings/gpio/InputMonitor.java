@@ -5,14 +5,11 @@ import android.util.Log;
 
 import com.google.android.things.pio.Gpio;
 import com.google.android.things.pio.PeripheralManagerService;
+import com.pixplicity.huethings.listeners.OnLightsUpdated;
 import com.pixplicity.huethings.network.HueBridge;
 
 import java.io.IOException;
 import java.util.Locale;
-
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Response;
 
 public class InputMonitor {
 
@@ -182,14 +179,18 @@ public class InputMonitor {
         mRequestTimestamp = System.currentTimeMillis();
 
         mHueBridge.setLights(hue, saturation, brightness,
-                new Callback() {
+                new OnLightsUpdated() {
                     @Override
-                    public void onFailure(Call call, IOException e) {
-                        mRequestBusy = false;
+                    public void onLightUpdated(String lightId) {
                     }
 
                     @Override
-                    public void onResponse(Call call, Response response) throws IOException {
+                    public void onLightUpdateFailed(String lightId, Throwable e) {
+                    }
+
+                    @Override
+                    public void onLightsUpdated(int count) {
+                        Log.d(TAG, "updated " + count + " lights");
                         mRequestBusy = false;
                     }
                 });

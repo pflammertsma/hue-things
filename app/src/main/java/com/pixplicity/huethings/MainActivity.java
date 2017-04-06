@@ -15,7 +15,6 @@ import com.pixplicity.huethings.network.HueBridgeConnector;
 import com.pixplicity.huethings.upnp.UPnPDevice;
 import com.pixplicity.huethings.upnp.UPnPDeviceFinder;
 
-import java.io.IOException;
 import java.util.List;
 
 import rx.android.schedulers.AndroidSchedulers;
@@ -54,7 +53,7 @@ public class MainActivity extends Activity {
 
                         @Override
                         public void onFailure(HueBridge hueBridge,
-                                              ErrorResponse.ResponseError error, IOException e) {
+                                              ErrorResponse.ResponseError error, Throwable e) {
                             startBridgeScan();
                         }
                     });

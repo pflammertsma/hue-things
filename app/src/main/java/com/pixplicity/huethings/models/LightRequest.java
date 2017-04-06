@@ -5,18 +5,18 @@ import com.google.gson.annotations.SerializedName;
 public class LightRequest {
 
     @SerializedName("on")
-    boolean switchedOn;
+    private boolean switchedOn;
 
     @SerializedName("hue")
-    int hue;
+    private Integer hue;
 
     @SerializedName("sat")
-    int saturation;
+    private Integer saturation;
 
     @SerializedName("bri")
-    int brightness;
+    private Integer brightness;
 
-    public LightRequest(boolean switchedOn, int hue, int saturation, int brightness) {
+    public LightRequest(boolean switchedOn, Integer hue, Integer saturation, Integer brightness) {
         this.switchedOn = switchedOn;
         this.hue = hue;
         this.saturation = saturation;
