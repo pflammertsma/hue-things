@@ -16,8 +16,8 @@ public class InputMonitor {
     private static final String TAG = InputMonitor.class.getSimpleName();
     private static final boolean VERBOSE = false;
 
-    private static final long SAMPLE_FREQUENCY_MS = 100L;
-    private static final long REQUEST_FREQUENCY_MS = 500L;
+    private static final long SAMPLE_FREQUENCY_MS = 50L;
+    private static final long REQUEST_FREQUENCY_MS = 100L;
     private static final float THRESHOLD = 0.01f;
     private static final int SMOOTH_SAMPLING_RATE = 6;
     private static final float MAX_READING = 1023f;
