@@ -39,82 +39,80 @@ import rx.Subscriber;
  */
 public class UPnPDeviceFinder {
 
-    private static String TAG = UPnPDeviceFinder.class.getName();
-    private static final boolean VERBOSE = true;
+    private static String TAG = UPnPDeviceFinder.class.getSimpleName();
+    private static final boolean VERBOSE = false;
 
-    public static final String MULTICAST_ADDRESS = "239.255.255.250";
+    private static final String MULTICAST_ADDRESS = "239.255.255.250";
+    private static final int MULTICAST_PORT = 1900;
 
-    public static final int PORT = 1900;
+    private static final int MAX_REPLY_TIME_SECONDS = 60;
+    private static final int MULTICAST_TIMEOUT_MILLISECONDS = MAX_REPLY_TIME_SECONDS * 1000;
 
-    public static final int MAX_REPLY_TIME = 60;
-    public static final int MSG_TIMEOUT = MAX_REPLY_TIME * 2 * 1000;
-
-    // From Apache InetAddressUtils
-    // https://hc.apache.org/httpcomponents-client-ga/httpclient/apidocs/org/apache/http/conn/util/InetAddressUtils.html
-    private static final Pattern IPV4_PATTERN =
-            Pattern.compile("^(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)){3}$");
-
-    private UPnPSocket mSock;
+    private final boolean mUseIPv4;
 
     public UPnPDeviceFinder() {
         this(true);
     }
 
     public UPnPDeviceFinder(boolean useIPv4) {
-        InetAddress inetDeviceAdr = getDeviceLocalIP(useIPv4);
-        Log.v(TAG, "IP is: " + inetDeviceAdr);
-
-        try {
-            mSock = new UPnPSocket(inetDeviceAdr);
-        } catch (IOException e) {
-            Log.e(TAG, "failed creating socket", e);
-        }
+        mUseIPv4 = useIPv4;
     }
 
     public Observable<UPnPDevice> observe() {
         return Observable.create(new Observable.OnSubscribe<UPnPDevice>() {
             @Override
             public void call(Subscriber<? super UPnPDevice> subscriber) {
-                if (mSock == null) {
-                    subscriber.onError(new Exception("socket is null"));
+                InetAddress localIp = getDeviceLocalIP(mUseIPv4);
+
+                UPnPSocket socket;
+                try {
+                    socket = new UPnPSocket(localIp);
+                } catch (IOException e) {
+                    subscriber.onError(e);
                     return;
                 }
 
                 try {
                     // Broadcast SSDP search messages
-                    mSock.sendMulticastMsg();
+                    socket.sendMulticastMsg();
 
                     // Listen to responses from network until the socket timeout
                     while (true) {
-                        if (VERBOSE) {
-                            Log.v(TAG, "wait for device response");
-                        }
-                        DatagramPacket dp = mSock.receiveMulticastMsg();
+                        DatagramPacket dp = socket.receiveMulticastMsg();
                         String receivedString = new String(dp.getData());
                         receivedString = receivedString.substring(0, dp.getLength());
-                        if (VERBOSE) {
-                            Log.v(TAG, "found device: " + receivedString);
-                        }
                         UPnPDevice device = UPnPDevice.getInstance(receivedString);
+                        if (VERBOSE) {
+                            Log.d(TAG, "UPnP response from " + dp.getAddress());
+                        }
                         if (device != null) {
+                            if (VERBOSE) {
+                                String name = device.getFriendlyName();
+                                if (name == null) {
+                                    name = "(unknown device)";
+                                }
+                                Log.d(TAG, "found device: " + device.getHost() + "; " + name);
+                            }
                             subscriber.onNext(device);
+                        } else if (VERBOSE) {
+                            Log.d(TAG, "found unknown device");
                         }
                     }
                 } catch (IOException e) {
-                    //sock timeout will get us out of the loop
+                    // Socket timeout will get us out of the loop
+                    socket.close();
                     if (e instanceof SocketTimeoutException) {
                         if (VERBOSE) {
-                            Log.w(TAG, "finished reading from multicast responses");
+                            Log.w(TAG, "finished reading from UPnP responses");
                         }
+                        subscriber.onCompleted();
                     } else {
-                        Log.e(TAG, "failed reading from multicast responses", e);
+                        Log.e(TAG, "failed reading UPnP responses", e);
+                        subscriber.onError(e);
                     }
-                    mSock.close();
-                    subscriber.onCompleted();
                 }
             }
         });
-
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -122,18 +120,21 @@ public class UPnPDeviceFinder {
     ////////////////////////////////////////////////////////////////////////////////
 
     private static class UPnPSocket {
-        private static String TAG = UPnPSocket.class.getName();
+
+        private static String TAG = UPnPSocket.class.getSimpleName();
 
         private SocketAddress mMulticastGroup;
         private MulticastSocket mMultiSocket;
 
         UPnPSocket(InetAddress deviceIp) throws IOException {
-            Log.v(TAG, "connecting to " + deviceIp.toString());
+            if (VERBOSE) {
+                Log.v(TAG, "device IP: " + deviceIp.toString());
+            }
 
-            mMulticastGroup = new InetSocketAddress(MULTICAST_ADDRESS, PORT);
+            mMulticastGroup = new InetSocketAddress(MULTICAST_ADDRESS, MULTICAST_PORT);
             mMultiSocket = new MulticastSocket(new InetSocketAddress(deviceIp, 0));
 
-            mMultiSocket.setSoTimeout(MSG_TIMEOUT);
+            mMultiSocket.setSoTimeout(MULTICAST_TIMEOUT_MILLISECONDS);
         }
 
         public void sendMulticastMsg() throws IOException {
@@ -176,9 +177,9 @@ public class UPnPDeviceFinder {
         StringBuilder content = new StringBuilder();
 
         content.append("M-SEARCH * HTTP/1.1").append(NEWLINE);
-        content.append("Host: " + MULTICAST_ADDRESS + ":" + PORT).append(NEWLINE);
+        content.append("Host: " + MULTICAST_ADDRESS + ":" + MULTICAST_PORT).append(NEWLINE);
         content.append("Man:\"ssdp:discover\"").append(NEWLINE);
-        content.append("MX: " + MAX_REPLY_TIME).append(NEWLINE);
+        content.append("MX: " + MAX_REPLY_TIME_SECONDS).append(NEWLINE);
         content.append("ST: upnp:rootdevice").append(NEWLINE);
         content.append(NEWLINE);
 

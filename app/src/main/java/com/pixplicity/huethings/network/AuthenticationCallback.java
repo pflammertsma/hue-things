@@ -1,11 +1,12 @@
 package com.pixplicity.huethings.network;
 
-import java.io.IOException;
+import com.pixplicity.huethings.models.AuthResponse;
+import com.pixplicity.huethings.models.ErrorResponse;
 
 public interface AuthenticationCallback {
 
-    void onSuccess(HueBridge.AuthResponse.AuthResponseSuccess success);
+    void onSuccess(AuthResponse.AuthResponseSuccess success);
 
-    void onFailure(HueBridge.ErrorResponse.ResponseError error, IOException e);
+    void onFailure(ErrorResponse.ResponseError error, Throwable e);
 
 }
