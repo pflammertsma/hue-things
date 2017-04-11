@@ -39,11 +39,16 @@ public class HueBridgeConnector {
                         AuthenticationCallback callback = new AuthenticationCallback() {
                             @Override
                             public void onSuccess(AuthResponse.AuthResponseSuccess success) {
-                                // Store the token for later use
-                                String bridgeToken = success.username;
-                                Prefs.putString("bridge_" + bridgeId, bridgeToken);
+                                if (success == null) {
+                                    // Hue bridge failure condition
+                                    onFailure(null, null);
+                                } else {
+                                    // Store the token for later use
+                                    String bridgeToken = success.username;
+                                    Prefs.putString("bridge_" + bridgeId, bridgeToken);
 
-                                onConnected(bridgeToken, new HueBridge.Descriptor(host, bridgeId), hueBridge);
+                                    onConnected(bridgeToken, new HueBridge.Descriptor(host, bridgeId), hueBridge);
+                                }
                             }
 
                             @Override
