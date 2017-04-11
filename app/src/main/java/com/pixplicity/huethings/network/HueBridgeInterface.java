@@ -15,7 +15,7 @@ import retrofit2.http.Path;
 
 public interface HueBridgeInterface {
 
-    @POST()
+    @POST("./")
     Call<AuthResponse[]> authenticate(@Body AuthRequest body);
 
     @GET("capabilities")
