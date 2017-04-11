@@ -48,6 +48,9 @@ public class UPnPDeviceFinder {
     private static final int MAX_REPLY_TIME_SECONDS = 60;
     private static final int MULTICAST_TIMEOUT_MILLISECONDS = MAX_REPLY_TIME_SECONDS * 1000;
 
+    private static final Pattern IPV4_PATTERN =
+            Pattern.compile("^(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)(\\.(25[0-5]|2[0-4]\\d|[0-1]?\\d?\\d)){3}$");
+
     private final boolean mUseIPv4;
 
     public UPnPDeviceFinder() {
