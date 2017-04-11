@@ -32,6 +32,10 @@ import rx.schedulers.Schedulers;
 
 public class MainActivity extends Activity {
 
+    static {
+        System.loadLibrary("dht");
+    }
+
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private static final String DHT_PIN = "BCM18";
