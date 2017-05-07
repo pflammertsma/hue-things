@@ -34,16 +34,19 @@ public class MainActivity extends Activity {
 
     private static final boolean BRIDGE_SCAN_ENABLED = false;
 
-    private static final String BUTTON1_PIN = "BCM5";
-    private static final String BUTTON2_PIN = "BCM6";
-    private static final String BUTTON3_PIN = "BCM19";
-    private static final String BUTTON4_PIN = "BCM26";
-    private static final String BUTTON5_PIN = "BCM16";
-    private static final String LED1_PIN = "BCM18";
-    private static final String LED2_PIN = "BCM23";
+    private static final String BUTTON1_PIN = "BCM16";
+    private static final String BUTTON2_PIN = "BCM19";
+    private static final String BUTTON3_PIN = "BCM13";
+    private static final String BUTTON4_PIN = "BCM6";
+    private static final String BUTTON5_PIN = "BCM5";
+    private static final String LED1_PIN = "BCM12";
+    private static final String LED2_PIN = "BCM25";
     private static final String LED3_PIN = "BCM24";
-    private static final String LED4_PIN = "BCM25";
-    private static final String LED5_PIN = "BCM12";
+    private static final String LED4_PIN = "BCM23";
+    private static final String LED5_PIN = "BCM18";
+
+    public static final int ANIMATION_SPEED_MS = 160;
+    public static final int ANIMATION_PAUSE_MS = 480;
 
     private PeripheralManagerService mPioService;
     private InputMonitor mInputMonitor = new InputMonitor();
@@ -54,17 +57,19 @@ public class MainActivity extends Activity {
 
     private final Handler mHandler = new Handler();
 
-    private TextView mTvInfo;
+    private TextView mTvInfo1, mTvInfo2, mTvError;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mTvInfo = (TextView) findViewById(R.id.tv_info);
+        mTvInfo1 = (TextView) findViewById(R.id.tv_info1);
+        mTvInfo2 = (TextView) findViewById(R.id.tv_info2);
+        mTvError = (TextView) findViewById(R.id.tv_error);
 
         mPioService = new PeripheralManagerService();
-        debug("gpios: " + mPioService.getGpioList());
+        debug("gpios: " + mPioService.getGpioList(), mTvInfo1);
     }
 
     @Override
@@ -75,7 +80,7 @@ public class MainActivity extends Activity {
         try {
             mButton1 = new ButtonInputDriver(
                     BUTTON1_PIN,
-                    Button.LogicState.PRESSED_WHEN_HIGH,
+                    Button.LogicState.PRESSED_WHEN_LOW,
                     KeyEvent.KEYCODE_1);
             mButton1.register();
         } catch (IOException e) {
@@ -84,7 +89,7 @@ public class MainActivity extends Activity {
         try {
             mButton2 = new ButtonInputDriver(
                     BUTTON2_PIN,
-                    Button.LogicState.PRESSED_WHEN_HIGH,
+                    Button.LogicState.PRESSED_WHEN_LOW,
                     KeyEvent.KEYCODE_2);
             mButton2.register();
         } catch (IOException e) {
@@ -93,7 +98,7 @@ public class MainActivity extends Activity {
         try {
             mButton3 = new ButtonInputDriver(
                     BUTTON3_PIN,
-                    Button.LogicState.PRESSED_WHEN_HIGH,
+                    Button.LogicState.PRESSED_WHEN_LOW,
                     KeyEvent.KEYCODE_3);
             mButton3.register();
         } catch (IOException e) {
@@ -102,7 +107,7 @@ public class MainActivity extends Activity {
         try {
             mButton4 = new ButtonInputDriver(
                     BUTTON4_PIN,
-                    Button.LogicState.PRESSED_WHEN_HIGH,
+                    Button.LogicState.PRESSED_WHEN_LOW,
                     KeyEvent.KEYCODE_4);
             mButton4.register();
         } catch (IOException e) {
@@ -111,44 +116,14 @@ public class MainActivity extends Activity {
         try {
             mButton5 = new ButtonInputDriver(
                     BUTTON5_PIN,
-                    Button.LogicState.PRESSED_WHEN_HIGH,
+                    Button.LogicState.PRESSED_WHEN_LOW,
                     KeyEvent.KEYCODE_5);
             mButton5.register();
         } catch (IOException e) {
             Log.e(TAG, "failed to register button", e);
         }
 
-        // Configure LEDs
-        try {
-            mLed1 = mPioService.openGpio(LED1_PIN);
-            mLed1.setDirection(Gpio.DIRECTION_OUT_INITIALLY_LOW);
-        } catch (IOException e) {
-            Log.e(TAG, "failed to register LED", e);
-        }
-        try {
-            mLed2 = mPioService.openGpio(LED2_PIN);
-            mLed2.setDirection(Gpio.DIRECTION_OUT_INITIALLY_LOW);
-        } catch (IOException e) {
-            Log.e(TAG, "failed to register LED", e);
-        }
-        try {
-            mLed3 = mPioService.openGpio(LED3_PIN);
-            mLed3.setDirection(Gpio.DIRECTION_OUT_INITIALLY_LOW);
-        } catch (IOException e) {
-            Log.e(TAG, "failed to register LED", e);
-        }
-        try {
-            mLed4 = mPioService.openGpio(LED4_PIN);
-            mLed4.setDirection(Gpio.DIRECTION_OUT_INITIALLY_LOW);
-        } catch (IOException e) {
-            Log.e(TAG, "failed to register LED", e);
-        }
-        try {
-            mLed5 = mPioService.openGpio(LED5_PIN);
-            mLed5.setDirection(Gpio.DIRECTION_OUT_INITIALLY_LOW);
-        } catch (IOException e) {
-            Log.e(TAG, "failed to register LED", e);
-        }
+        openLeds();
 
         mHandler.post(new Runnable() {
             private int mCounter;
@@ -158,40 +133,71 @@ public class MainActivity extends Activity {
                 if (isFinishing()) {
                     return;
                 }
-                switch (mCounter) {
+                int delay;
+                if (true) {
+                    delay = animation2(mCounter);
+                } else {
+                    delay = animation1(mCounter);
+                }
+                if (delay < 0) {
+                    mCounter = 0;
+                    run();
+                    return;
+                }
+                mCounter++;
+                mHandler.postDelayed(this, delay);
+            }
+
+            private int animation1(int counter) {
+                switch (counter) {
                     case 0:
                         setLed(1, true);
-                        break;
+                        return ANIMATION_SPEED_MS;
                     case 1:
                         setLed(1, false);
                         setLed(2, true);
-                        break;
+                        return ANIMATION_SPEED_MS;
                     case 2:
                         setLed(2, false);
                         setLed(3, true);
-                        break;
+                        return ANIMATION_SPEED_MS;
                     case 3:
                         setLed(3, false);
                         setLed(4, true);
-                        break;
+                        return ANIMATION_SPEED_MS;
                     case 4:
                         setLed(4, false);
                         setLed(5, true);
-                        break;
+                        return ANIMATION_SPEED_MS;
                     case 5:
                         setLed(5, false);
-                        mCounter = -1;
-                        break;
+                        return ANIMATION_PAUSE_MS;
+                    default:
+                        return -1;
                 }
-                mCounter++;
-                mHandler.postDelayed(this, 500);
             }
+
+            private int animation2(int counter) {
+                switch (counter) {
+                    case 0:
+                        setLed(1, true);
+                        setLed(2, true);
+                        return ANIMATION_SPEED_MS;
+                    case 1:
+                        setLed(1, false);
+                        setLed(2, false);
+                        return ANIMATION_SPEED_MS;
+                    default:
+                        return -1;
+                }
+            }
+
         });
 
         String bridgeJson = Prefs.getString("last_bridge", null);
         if (bridgeJson != null) {
             HueBridge.Descriptor bridge = GsonUtils.get().fromJson(bridgeJson, HueBridge.Descriptor.class);
-            debug("reconnecting to previous bridge " + bridge);
+            debug("reconnecting to previous bridge " + bridge, mTvInfo1);
             mHueBridgeConnector.connect(bridge.getHost(), bridge.getBridgeId(),
                                         new CapabilitiesCallback() {
                                             @Override
@@ -208,47 +214,6 @@ public class MainActivity extends Activity {
         } else if (BRIDGE_SCAN_ENABLED) {
             startBridgeScan();
         }
-    }
-
-    private void startBridgeScan() {
-        new UPnPDeviceFinder().observe()
-                              .filter(new Func1<UPnPDevice, Boolean>() {
-                                  @Override
-                                  public Boolean call(UPnPDevice device) {
-                                      try {
-                                          String bridgeId = device.getProperty("upnp_hue-bridgeid");
-                                          if (bridgeId != null) {
-                                              device.downloadSpecs();
-
-                                              debug("Philips Hue bridge discovered: " + device);
-                                              mHueBridgeConnector.connectLoop(device.getHost(), bridgeId);
-                                              return true;
-                                          } else {
-                                              debug("Device discovered: " + device);
-                                          }
-                                      } catch (Exception e) {
-                                          // Ignore errors
-                                          Log.e(TAG, "failed obtaining device specs", e);
-                                      }
-                                      return false;
-                                  }
-                              })
-                              .subscribeOn(Schedulers.io())
-                              .observeOn(AndroidSchedulers.mainThread())
-                              .toList()
-                              .map(new Func1<List<UPnPDevice>, List<UPnPDevice>>() {
-                                  @Override
-                                  public List<UPnPDevice> call(List<UPnPDevice> devices) {
-                                      if (devices.isEmpty()) {
-                                          debug("no UPnP device matches; retrying");
-                                          throw new RuntimeException();
-                                      }
-                                      debug("UPnP device matches: " + devices.size());
-                                      return devices;
-                                  }
-                              })
-                              .retry()
-                              .subscribe();
     }
 
     @Override
@@ -288,6 +253,78 @@ public class MainActivity extends Activity {
             } catch (IOException ignore) {
             }
         }
+        closeLeds();
+
+        mHueBridgeConnector.stop();
+        mInputMonitor.stop();
+
+        super.onStop();
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        debug("onKeyDown: " + keyCode, mTvInfo2);
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_1:
+                toggleLed(1);
+                return true;
+            case KeyEvent.KEYCODE_2:
+                toggleLed(2);
+                return true;
+            case KeyEvent.KEYCODE_3:
+                toggleLed(3);
+                return true;
+            case KeyEvent.KEYCODE_4:
+                toggleLed(4);
+                return true;
+            case KeyEvent.KEYCODE_5:
+                toggleLed(5);
+                return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        debug("onKeyUp: " + keyCode, mTvInfo2);
+        return super.onKeyUp(keyCode, event);
+    }
+
+    private void openLeds() {
+        // Configure LEDs
+        try {
+            mLed1 = mPioService.openGpio(LED1_PIN);
+            mLed1.setDirection(Gpio.DIRECTION_OUT_INITIALLY_LOW);
+        } catch (IOException e) {
+            Log.e(TAG, "failed to register LED", e);
+        }
+        try {
+            mLed2 = mPioService.openGpio(LED2_PIN);
+            mLed2.setDirection(Gpio.DIRECTION_OUT_INITIALLY_LOW);
+        } catch (IOException e) {
+            Log.e(TAG, "failed to register LED", e);
+        }
+        try {
+            mLed3 = mPioService.openGpio(LED3_PIN);
+            mLed3.setDirection(Gpio.DIRECTION_OUT_INITIALLY_LOW);
+        } catch (IOException e) {
+            Log.e(TAG, "failed to register LED", e);
+        }
+        try {
+            mLed4 = mPioService.openGpio(LED4_PIN);
+            mLed4.setDirection(Gpio.DIRECTION_OUT_INITIALLY_LOW);
+        } catch (IOException e) {
+            Log.e(TAG, "failed to register LED", e);
+        }
+        try {
+            mLed5 = mPioService.openGpio(LED5_PIN);
+            mLed5.setDirection(Gpio.DIRECTION_OUT_INITIALLY_LOW);
+        } catch (IOException e) {
+            Log.e(TAG, "failed to register LED", e);
+        }
+    }
+
+    private void closeLeds() {
         if (mLed1 != null) {
             try {
                 mLed1.close();
@@ -318,34 +355,47 @@ public class MainActivity extends Activity {
             } catch (IOException ignore) {
             }
         }
-
-        mHueBridgeConnector.stop();
-        mInputMonitor.stop();
-
-        super.onStop();
     }
 
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        debug("onKeyDown: " + keyCode);
-        switch (keyCode) {
-            case KeyEvent.KEYCODE_1:
-                toggleLed(1);
-                return true;
-            case KeyEvent.KEYCODE_2:
-                toggleLed(2);
-                return true;
-            case KeyEvent.KEYCODE_3:
-                toggleLed(3);
-                return true;
-            case KeyEvent.KEYCODE_4:
-                toggleLed(4);
-                return true;
-            case KeyEvent.KEYCODE_5:
-                toggleLed(5);
-                return true;
-        }
-        return super.onKeyDown(keyCode, event);
+    private void startBridgeScan() {
+        new UPnPDeviceFinder().observe()
+                              .filter(new Func1<UPnPDevice, Boolean>() {
+                                  @Override
+                                  public Boolean call(UPnPDevice device) {
+                                      try {
+                                          String bridgeId = device.getProperty("upnp_hue-bridgeid");
+                                          if (bridgeId != null) {
+                                              device.downloadSpecs();
+
+                                              debug("Philips Hue bridge discovered: " + device, mTvInfo2);
+                                              mHueBridgeConnector.connectLoop(device.getHost(), bridgeId);
+                                              return true;
+                                          } else {
+                                              debug("Device discovered: " + device, mTvInfo1);
+                                          }
+                                      } catch (Exception e) {
+                                          // Ignore errors
+                                          Log.e(TAG, "failed obtaining device specs", e);
+                                      }
+                                      return false;
+                                  }
+                              })
+                              .subscribeOn(Schedulers.io())
+                              .observeOn(AndroidSchedulers.mainThread())
+                              .toList()
+                              .map(new Func1<List<UPnPDevice>, List<UPnPDevice>>() {
+                                  @Override
+                                  public List<UPnPDevice> call(List<UPnPDevice> devices) {
+                                      if (devices.isEmpty()) {
+                                          debug("no UPnP device matches; retrying", mTvError);
+                                          throw new RuntimeException();
+                                      }
+                                      debug("UPnP device matches: " + devices.size(), mTvInfo1);
+                                      return devices;
+                                  }
+                              })
+                              .retry()
+                              .subscribe();
     }
 
     public void toggleLed(int id) {
@@ -375,6 +425,7 @@ public class MainActivity extends Activity {
                 Log.e(TAG, "toggleLed: unexpected id " + id);
                 return;
         }
+        debug("set LED #" + id + " to " + value, mTvInfo1);
         setLed(id, value);
     }
 
@@ -405,16 +456,15 @@ public class MainActivity extends Activity {
             return;
         }
         try {
-            debug("setting LED #" + "setting LED #" + id + " to " + value + " to " + "setting LED #" + id + " to " + value);
             led.setValue(value);
         } catch (IOException e) {
             Log.e(TAG, "failed setting LED #" + id, e);
         }
     }
 
-    public void debug(String msg) {
+    public void debug(String msg, TextView textView) {
         Log.d(TAG, msg);
-        mTvInfo.setText(msg);
+        textView.setText(msg);
     }
 
 }

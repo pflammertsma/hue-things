@@ -5,7 +5,7 @@ android {
     buildToolsVersion "25.0.2"
     defaultConfig {
         applicationId 'com.pixplicity.huethings'
-        minSdkVersion 21
+        minSdkVersion 24
         targetSdkVersion 25
         versionCode 1
         versionName "1.0"
@@ -26,6 +26,7 @@ repositories {
 }
 dependencies {
     provided 'com.google.android.things:androidthings:0.2-devpreview'
+    compile 'com.google.android.things.contrib:driver-button:0.2'
     compile 'com.google.code.gson:gson:2.8.0'
     compile 'com.squareup.okhttp3:okhttp:3.6.0'
     compile 'com.squareup.okhttp3:logging-interceptor:3.4.1'
